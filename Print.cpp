@@ -620,9 +620,13 @@ void Print_Results(double Elapsed_time, double status)
 	{
 		fid << 1 << ",";
 	}
-	if (Setting::Approach_2_active)
+	else if (Setting::Approach_2_active)
 	{
 		fid << 2 << ",";
+	}
+	else
+	{
+		fid << "decoup" << ",";
 	}
 	fid << Setting::Case << ",";
 	//fid << Setting::Approach_1_active << ",";
