@@ -168,18 +168,14 @@ void Electricy_Network_Model()
 	Model.addConstr(CV::xi == 1);
 	Model.addConstr(CV::E_emis == 1);
 	Model.addConstr(CV::NG_emis == 1);
-	if (Setting::warm_start_active)
-	{
-		//Model.addConstr(exp_Eobj >= elec_LB);
-	}
-
 #pragma region Solve the model
 
 	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
 	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
 	Model.optimize();
 
-	if (Model.get(GRB_IntAttr_Status) != GRB_OPTIMAL) {
+	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
+	{
 		std::cout << "Failed to optimize Electricity network model!!!" << endl;
 		std::cout << Model.get(GRB_IntAttr_Status);
 		throw(-1);
@@ -225,7 +221,8 @@ void NG_Network_Model()
 	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
 	Model.optimize();
 
-	if (Model.get(GRB_IntAttr_Status) != GRB_OPTIMAL) {
+	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
+	{
 		std::cout << "Failed to optimize!!!" << endl;
 		std::cout << Model.get(GRB_IntAttr_Status);
 		throw(-1);

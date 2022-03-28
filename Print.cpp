@@ -551,7 +551,7 @@ void Print_Results(double Elapsed_time, double status)
 {
 #pragma region Print in CSV file
 	ofstream fid;
-	string name = "NGES_Results.csv";
+	string name = "NGES_Results2.csv";
 	fid.open(name, std::ios::app);
 	if (Setting::print_results_header)
 	{

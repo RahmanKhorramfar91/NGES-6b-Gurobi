@@ -2,7 +2,7 @@
 #include "ProblemData.h"
 #include"Models_Funcs.h"
 #pragma region Declaration of fields of "Setting" struct
-bool Setting::print_E_vars;  
+bool Setting::print_E_vars;
 bool Setting::print_NG_vars;
 bool Setting::print_results_header;
 bool Setting::relax_int_vars;
@@ -52,16 +52,16 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 7;   // 2, 7, 14, 52, 365
-		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
+		Setting::Num_rep_days = 2;   // 2, 7, 14, 52, 365
+		Setting::Approach_1_active = false; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
-		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = true;
 		Setting::xi_val = 0.1 * PGC;//0.01,0.05, 0.1,0.15,0.2,;
-		Setting::Emis_lim = .55 * Poss_Emis;    // tons
+		Setting::Emis_lim = .65 * Poss_Emis;    // tons
 		Setting::RPS = 0.3;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.05 * PGC; //0.05,0.1,0.2,
-		Setting::cplex_gap = 0.02;  // 2%
+		Setting::RNG_cap = 0.2 * PGC; //0.05,0.1,0.2,
+		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
 
@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	//Setting::heuristics1_active = true;
 	Setting::warm_start_active = false;
 #pragma endregion
-	            
+
 #pragma region  Other parameters   
 	Params::Num_Rep_Days = Setting::Num_rep_days;
 	double RNG_price = 20; // $$ per MMBtu
@@ -130,12 +130,14 @@ int main(int argc, char* argv[])
 	double MidSol = 0;
 	double xiLB1 = 0; double xiUB1 = 0;
 
-	//Electricy_Network_Model();
-	//NG_Network_Model();
-	//auto end = chrono::high_resolution_clock::now();
-	//double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
-	//Print_Results(Elapsed, EV::val_e_system_cost+GV::val_NG_system_cost);
-
+	if (Setting::Case == 1)
+	{
+		Electricy_Network_Model();
+		NG_Network_Model();
+		auto end = chrono::high_resolution_clock::now();
+		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
+		Print_Results(Elapsed, EV::val_e_system_cost + GV::val_NG_system_cost);
+	}
 
 
 	if (Setting::Approach_1_active)
