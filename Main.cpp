@@ -2,7 +2,7 @@
 #include "ProblemData.h"
 #include"Models_Funcs.h"
 #pragma region Declaration of fields of "Setting" struct
-bool Setting::print_E_vars;
+bool Setting::print_E_vars;  
 bool Setting::print_NG_vars;
 bool Setting::print_results_header;
 bool Setting::relax_int_vars;

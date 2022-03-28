@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "ProjectMap": {
+    "c7bccf79-cb77-4aea-ae21-27d7bcef930d": {
+      "ProjectGuid": "c7bccf79-cb77-4aea-ae21-27d7bcef930d",
+      "DisplayName": "NGES-6b-Gurobi",
+      "ColorIndex": 0
+    }
+  },
+  "NextColorIndex": 1
+}
