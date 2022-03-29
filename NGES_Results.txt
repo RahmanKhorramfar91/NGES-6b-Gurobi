@@ -141,3 +141,128 @@ Elapsed time: 0.518
          xi value = 2.284e+08
          NG emission = 2.92005e+07
          E emission = 0
+
+
+
+
+
+***********  30      0       1       3       1      0.01     0.55    0.1     0.1     0.02    3600
+
+Elapsed time: 3615.59
+         DESP Obj Value:1.36441e+10
+         Gap: 0.155182 Status:9
+Set parameter Username
+Academic license - for non-commercial use only - expires 2023-02-09
+Set parameter TimeLimit to value 3600
+Set parameter MIPGap to value 0.02
+Gurobi Optimizer version 9.5.0 build v9.5.0rc5 (win64)
+Thread count: 4 physical cores, 8 logical processors, using up to 8 threads
+Optimize a model with 6641 rows, 152022 columns and 25412 nonzeros
+Model fingerprint: 0xdb65e791
+Variable types: 151623 continuous, 399 integer (147 binary)
+Coefficient statistics:
+  Matrix range     [6e-02, 1e+07]
+  Objective range  [8e+00, 1e+07]
+  Bounds range     [1e+00, 1e+00]
+  RHS range        [1e-02, 8e+09]
+Warning: Model contains large rhs
+         Consider reformulating model or setting NumericFocus parameter
+         to avoid numerical issues.
+Presolve removed 3671 rows and 146348 columns
+Presolve time: 0.07s
+Presolved: 2970 rows, 5674 columns, 15422 nonzeros
+Variable types: 5620 continuous, 54 integer (54 binary)
+Found heuristic solution: objective 3.439757e+10
+
+Root relaxation: objective 3.431805e+10, 2239 iterations, 0.02 seconds (0.02 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0 3.4318e+10    0    2 3.4398e+10 3.4318e+10  0.23%     -    0s
+
+Explored 1 nodes (2239 simplex iterations) in 0.15 seconds (0.10 work units)
+Thread count was 8 (of 8 available processors)
+
+Solution count 1: 3.43976e+10
+
+Optimal solution found (tolerance 2.00e-02)
+Warning: max constraint violation (5.7220e-06) exceeds tolerance
+Best objective 3.439757125262e+10, best bound 3.431805319363e+10, gap 0.2312%
+Elapsed time: 0.633
+         DGSP Obj Value:3.43976e+10
+         Gap: 0.00231173 Status:2
+         xi value = 1.142e+07
+         NG emission = 3.30848e+07
+         E emission = 0
+		 
+		 
+		 
+		 
+		 
+		 
+		 
+		  30      0       1       3       1      0.1      0.55    0.1     0.1     0.02    3600
+Set parameter Username
+		 
+		 
+		 Elapsed time: 3617.3
+         DESP Obj Value:1e+100
+         Gap: 1e+100 Status:9
+ ************************************************************************* 
+ Num_Rep_days: 30	 Approach 1: 0	Approach 2: 1	 Case: 3	xi_given: 1	xi_val: 2.284e+08	Emis_lim: 3.32893e+07	RPS: 0.1	RNG_cap: 1.142e+08
+	 Elapsed time: 3616.96
+	 Total cost for both networks:2.42379e+11
+
+ 	 Electricity Network Obj Value: 7.45238e+09
+ 	 Establishment Cost: 2.11871e+09
+ 	 Decommissioning Cost: 4.8518e+08
+ 	 Fixed Cost: 3.55805e+09
+ 	 Variable Cost: 7.77075e+07
+ 	 dfo,coal emission cost: 0
+ 	 (dfo, coal, and nuclear) Fuel Cost: 1.46182e+08
+ 	 Load Shedding Cost: 4.40915e+08
+ 	 Storage Cost: 5.23238e+08
+ 	 E Emission: 4.09032e+06
+
+
+	 NG Network Obj Value:2.34927e+11
+	 NG import Cost: 2.91662e+09
+	 Pipeline Establishment Cost: 8.68408e+07
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 2.21651e+11
+	 NG Load RNG Shedding Cost: 2.284e+09
+	 NG Emission: 2.9199e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 7	 Approach 1: 0	Approach 2: 0	 Case: 1	xi_given: 0	xi_val: 0	Emis_lim: 3.32893e+07	RPS: 0.1	RNG_cap: 1.142e+08
+	 Elapsed time: 105.813
+	 Total cost for both networks:1.37394e+10
+
+ 	 Electricity Network Obj Value: 3.19286e+09
+ 	 Establishment Cost: 5.6633e+08
+ 	 Decommissioning Cost: 9.5e+07
+ 	 Fixed Cost: 1.94306e+09
+ 	 Variable Cost: 3.61631e+08
+ 	 dfo,coal emission cost: 0
+ 	 (dfo, coal, and nuclear) Fuel Cost: 1.14774e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 0
+ 	 E Emission: 0
+
+
+	 NG Network Obj Value:1.05466e+10
+	 NG import Cost: 2.49209e+09
+	 Pipeline Establishment Cost: 6.66644e+07
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 100
+
+
+

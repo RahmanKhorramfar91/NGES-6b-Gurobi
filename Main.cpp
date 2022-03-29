@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 		Setting::xi_val = 0.1 * PGC;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.55 * Poss_Emis;    // tons
 		Setting::RPS = 0.1;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.2 * PGC; //0.05,0.1,0.2,
+		Setting::RNG_cap = 0.1 * PGC; //0.05,0.1,0.2,
 		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}

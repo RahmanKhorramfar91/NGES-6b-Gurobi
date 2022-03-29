@@ -493,14 +493,15 @@ void Get_GV_vals(GRBModel Model)
 	}
 	//fid2 << endl;
 	GV::val_vapor = new double[nSVL]();
-	for (int j = 0; j < nSVL; j++)
-	{
-		GV::val_vapor[j] += GV::Xvpr[j].get(GRB_DoubleAttr_X);
-		/*if (s1 > 0.001)
-		{
-			fid2 << "Xvpr[" << j << "]= " << s1 << endl;
-		}*/
-	}
+	//for (int j = 0; j < nSVL; j++)
+	//{
+	//	GV::val_vapor[j] += GV::Xvpr[j].get(GRB_DoubleAttr_X);
+	//	
+	//	/*if (s1 > 0.001)
+	//	{
+	//		fid2 << "Xvpr[" << j << "]= " << s1 << endl;
+	//	}*/
+	//}
 
 
 	//fid2 << endl;
