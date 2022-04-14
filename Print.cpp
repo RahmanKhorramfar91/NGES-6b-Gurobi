@@ -87,10 +87,14 @@ void Get_EV_vals(GRBModel Model)
 			EV::val_Xop[n][i] = EV::Xop[n][i].get(GRB_DoubleAttr_X);
 			EV::val_Xest[n][i] = EV::Xest[n][i].get(GRB_DoubleAttr_X);
 			EV::val_Xdec[n][i] = EV::Xdec[n][i].get(GRB_DoubleAttr_X);
-			if (EV::val_Xop[n][i] > 0)
-			{
-				//cout << "Xopt[" << n << "][" << i << "] = " << EV::val_Xop[n][i] << endl;
-			}
+			//if (EV::val_Xest[n][i] > 0)
+			//{
+			//	cout << "X[" << n << "][" << i << "] = " << EV::val_Xest[n][i] << endl;
+			//}
+			//if (EV::val_Xop[n][i] > 0)
+			//{
+			//	cout << "X[" << n << "][" << i << "] = " << EV::val_Xop[n][i] << endl;
+			//}
 			//XestS[n][i] = EV::Xest[n][i]);
 			//XdecS[n][i] = EV::Xdec[n][i]);
 			//Xs[n][i] = EV::Xop[n][i]);
@@ -218,13 +222,14 @@ void Get_EV_vals(GRBModel Model)
 		}
 	}
 
-	//double** YeStr = new double* [nEnode];
+	EV::val_YeStr = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
-		//YeStr[n] = new double[neSt]();
+		EV::val_YeStr[n] = new double[neSt]();
 		for (int r = 0; r < neSt; r++)
 		{
 			EV::val_num_storage += EV::YeStr[n][r].get(GRB_DoubleAttr_X);
+			EV::val_YeStr[n][r] = EV::YeStr[n][r].get(GRB_DoubleAttr_X);
 			//YeStr[n][r] = EV::YeStr[n][r]);
 			/*if (YeStr[n][r] > 10e-3)
 			{
@@ -429,13 +434,13 @@ void Get_GV_vals(GRBModel Model)
 		}
 	}
 	//fid2 << endl;
-	GV::val_flowGE = new double** [nGnode];
+	//GV::val_flowGE = new double** [nGnode];
 	for (int k = 0; k < nGnode; k++)
 	{
-		GV::val_flowGE[k] = new double* [Gnodes[k].adjE.size()];
+		//GV::val_flowGE[k] = new double* [Gnodes[k].adjE.size()];
 		for (int kp : Gnodes[k].adjE)
 		{
-			GV::val_flowGE[k][kp] = new double[Tg.size()]();
+			//GV::val_flowGE[k][kp] = new double[Tg.size()]();
 			for (int tau = 0; tau < Tg.size(); tau++)
 			{
 				//GV::val_flowGE[k][kp][tau] = GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
@@ -448,7 +453,7 @@ void Get_GV_vals(GRBModel Model)
 		}
 	}
 
-	//fid2 << endl;
+	////fid2 << endl;
 	for (int k = 0; k < nGnode; k++)
 	{
 		for (int kp : Gnodes[k].adjS)
@@ -491,17 +496,18 @@ void Get_GV_vals(GRBModel Model)
 			fid2 << "Xstr[" << j << "]= " << s1 << endl;
 		}*/
 	}
+	int gg = 0;
 	//fid2 << endl;
 	GV::val_vapor = new double[nSVL]();
-	//for (int j = 0; j < nSVL; j++)
-	//{
-	//	GV::val_vapor[j] += GV::Xvpr[j].get(GRB_DoubleAttr_X);
-	//	
-	//	/*if (s1 > 0.001)
-	//	{
-	//		fid2 << "Xvpr[" << j << "]= " << s1 << endl;
-	//	}*/
-	//}
+	for (int j = 0; j < nSVL; j++)
+	{
+		GV::val_vapor[j] += GV::Xvpr[j].get(GRB_DoubleAttr_X);
+		
+		/*if (s1 > 0.001)
+		{
+			fid2 << "Xvpr[" << j << "]= " << s1 << endl;
+		}*/
+	}
 
 
 	//fid2 << endl;
@@ -552,7 +558,7 @@ void Print_Results(double Elapsed_time, double status)
 {
 #pragma region Print in CSV file
 	ofstream fid;
-	string name = "NGES_Results2.csv";
+	string name = "NGES_Results.csv";
 	fid.open(name, std::ios::app);
 	if (Setting::print_results_header)
 	{
@@ -560,7 +566,6 @@ void Print_Results(double Elapsed_time, double status)
 		fid << "\nSol_Time" << ",";
 		fid << "Num_Rep_days" << ",";
 		fid << "Approach :" << ",";
-		fid << "Case: " << ",";
 		fid << "Case: " << ",";
 		fid << "xi_given" << ",";
 		fid << "xi_val" << ",";

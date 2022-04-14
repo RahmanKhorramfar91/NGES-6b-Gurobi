@@ -1,6 +1,6 @@
 #include"Models_Funcs.h"
 
-double Elec_feas_sol()
+double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_gap)
 {
 	auto start = chrono::high_resolution_clock::now();
 
@@ -11,11 +11,13 @@ double Elec_feas_sol()
 	int nPlt = (int)Plants.size();
 	vector<int> Te = Params::Te;
 #pragma endregion
-	Setting::heuristics1_active = true;
+
+	Setting::heuristics1_active = true; Setting::relax_int_vars = true;
 	Setting::warm_start_active = false;
+
 #pragma region Feasible solution for electricity network
 	// solve heuristic to get a LB
-	double elec_LB = 0;
+
 	GRBEnv* env = 0;
 	env = new GRBEnv();
 	GRBModel Model = GRBModel(env);
@@ -35,20 +37,19 @@ double Elec_feas_sol()
 	Model.addConstr(ex_E_emis <= Setting::Emis_lim);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 
-	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
-	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
+	Model.set(GRB_DoubleParam_TimeLimit, 3600);
+	Model.set(GRB_DoubleParam_MIPGap, 0.01);
 	Model.optimize();
-	elec_LB = Model.get(GRB_DoubleAttr_ObjVal);
+	double gapp = Model.get(GRB_DoubleAttr_MIPGap);
+	elec_LB =  Model.get(GRB_DoubleAttr_ObjBound);
+	/*double gg0 = Model.get(GRB_DoubleAttr_MinBound);
+	double gg2 = Model.get(GRB_DoubleParam_BestBdStop);
+	double gg3 = Model.get(GRB_DoubleAttr_BoundVio);
+	double gg = Model.get(GRB_DoubleAttr_MinBound);*/
 	Get_EV_vals(Model);
-	Setting::heuristics1_active = false;
-
+	Setting::heuristics1_active = false; Setting::relax_int_vars = false;
 	env->~GRBEnv();
 	Model.~GRBModel();
-
-
-
-
-
 
 
 	// set Xop variables and solve the model to get an UB
@@ -76,17 +77,25 @@ double Elec_feas_sol()
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
-			Model2.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
-			Model2.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
-			Model2.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
-			for (int t = 0; t < Te.size(); t++)
-			{
-				//Model2.addConstr(EV::prod[n][t][i] == EV::val_prod[n][t][i]);
-			}
+			Model2.addConstr(EV::Xop[n][i] == std::round(EV::val_Xop[n][i]));
+			//Model2.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
+			//Model2.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);			
 		}
 	}
-	Model2.set(GRB_DoubleParam_TimeLimit, 600);
-	Model2.set(GRB_DoubleParam_MIPGap, 0.05);
+	for (int b = 0; b < (int)Params::Branches.size(); b++)
+	{
+		Model2.addConstr(EV::Ze[b] == std::round(EV::val_Ze[b]));
+	}
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < (int)Params::Estorage.size(); i++)
+		{
+			Model2.addConstr(EV::YeStr[n][i] == std::round(EV::val_YeStr[n][i]));
+		}
+	}
+
+	Model2.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model2.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
 	Model2.optimize();
 
 	/*if (Model2.get(GRB_IntAttr_Status) != GRB_OPTIMAL) {
@@ -95,7 +104,8 @@ double Elec_feas_sol()
 	}*/
 
 
-	double Elec_Ub = Model2.get(GRB_DoubleAttr_ObjVal);
+	elec_UB = Model2.get(GRB_DoubleAttr_ObjVal);
+	feas_gap = Model2.get(GRB_DoubleAttr_MIPGap);
 	CV::used_emis_cap = CV::E_emis.get(GRB_DoubleAttr_X);
 	Get_EV_vals(Model2);
 	Model2.~GRBModel();
@@ -133,14 +143,15 @@ double Elec_feas_sol()
 	Model3.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
 	Model3.optimize();
 
-	double NG_UB = Model3.get(GRB_DoubleAttr_ObjVal);
-	Get_GV_vals(Model);
-	Model3.~GRBModel();
+	ng_obj = Model3.get(GRB_DoubleAttr_ObjVal);
+	double rt = elec_UB + ng_obj;
+	Get_GV_vals(Model3);
+	//Model3.~GRBModel();
 #pragma endregion
 
 	Setting::warm_start_active = true;
 
-	return Elec_Ub + NG_UB;
+	return 0;
 }
 
 void Electricy_Network_Model()
@@ -151,7 +162,8 @@ void Electricy_Network_Model()
 	double elec_UB = 0;
 	if (Setting::warm_start_active)
 	{
-		elec_UB = Elec_feas_sol();
+		double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
+		elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
 	}
 #pragma endregion
 
@@ -247,7 +259,8 @@ double Integrated_Model()
 	double elec_UB = 0;
 	if (Setting::warm_start_active)
 	{
-		elec_UB = Elec_feas_sol();
+		double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
+		elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
 	}
 #pragma endregion
 	GRBEnv* env = 0;
@@ -349,8 +362,8 @@ double Integrated_Model()
 
 	EV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
 	GV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
-	Get_GV_vals(Model);
 	Get_EV_vals(Model);
+	Get_GV_vals(Model);
 	return obj_val;
 }
 

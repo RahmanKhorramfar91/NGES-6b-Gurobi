@@ -52,26 +52,27 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 7;   // 2, 7, 14, 52, 365
-		Setting::Approach_1_active = false; // approach 1: integrated, 2: decoupled 
+		Setting::Num_rep_days = 2;   // 2, 7, 14, 52, 365
+		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
-		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
-		Setting::is_xi_given = false;
+		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::is_xi_given = true;
 		Setting::xi_val = 0.1 * PGC;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.55 * Poss_Emis;    // tons
 		Setting::RPS = 0.1;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.1 * PGC; //0.05,0.1,0.2,
-		Setting::cplex_gap = 0.01;  // 2%
+		Setting::cplex_gap = 0.02;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
 
 #pragma region Problem Setting
 	Setting::relax_int_vars = false; // int vars in electricity network
-	Setting::print_results_header = false;
+	Setting::print_results_header = true;
 	Setting::xi_LB_obj = false; // (default = false) 
 	Setting::xi_UB_obj = false;  // (default = false) 
 	//Setting::heuristics1_active = true;
 	Setting::warm_start_active = false;
+	bool only_feas_sol = false;
 #pragma endregion
 
 #pragma region  Other parameters   
@@ -118,7 +119,7 @@ int main(int argc, char* argv[])
 	//Params::RPS = RPS;
 	Params::NG_emis_rate = NG_emis_rate;
 #pragma endregion
-
+	int nBr = Params::Branches.size();
 
 	int** Xs = new int* [Params::Enodes.size()];
 	double*** Ps = new double** [Params::Enodes.size()];
@@ -130,13 +131,32 @@ int main(int argc, char* argv[])
 	double MidSol = 0;
 	double xiLB1 = 0; double xiUB1 = 0;
 
+	double elec_LB = 0;
+	double elec_UB = 0;
+	double ng_obj;
+	double feas_gap;
+	std::cout << "\n\n start Feasible solution procedure!" << endl;
+	//double gg = DESP();
+	if (only_feas_sol)
+	{
+		double UB = feas_sol(elec_LB,elec_UB,ng_obj,feas_gap);
+		auto end = chrono::high_resolution_clock::now();
+		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
+		//Print_Results(Elapsed, EV::val_e_system_cost + GV::val_NG_system_cost);
+		std::cout << "\n\n \t\t Elapsed time: " << Elapsed;
+		std::cout << "\t\t System LB: " << elec_LB+ng_obj;
+		std::cout << "\t\t System UB: " << elec_UB + ng_obj << endl;
+		std::cout << "\n\n";
+		return 0;
+	}
+
+
 	if (Setting::Case == 1)
 	{
 		Electricy_Network_Model();
 		NG_Network_Model();
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
-		Print_Results(Elapsed, EV::val_e_system_cost + GV::val_NG_system_cost);
 	}
 
 

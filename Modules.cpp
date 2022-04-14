@@ -52,6 +52,7 @@ double** EV::val_Xest;
 double** EV::val_Xdec;
 double* EV::val_Ze;
 double EV::MIP_gap;
+double** EV::val_YeStr;
 #pragma endregion
 
 #pragma region NG struct
@@ -148,7 +149,16 @@ void  Populate_EV(GRBModel& Model)
 	EV::YeCD = new GRBVar * [nEnode]; // continuous: charge/discharge capacity
 	EV::YeLev = new GRBVar * [nEnode]; // continuous: charge/discharge level
 	EV::YeStr = new GRBVar * [nEnode]; // (binary) if a storage is established
+	/*if (Setting::relax_int_vars)
+	{
+		EV::Ze = Model.addVars(nBr, GRB_CONTINUOUS);
+	}
+	else
+	{
+		EV::Ze = Model.addVars(nBr, GRB_BINARY);
+	}*/
 	EV::Ze = Model.addVars(nBr, GRB_BINARY);
+	
 	EV::theta = new GRBVar * [nEnode]; // continuous phase angle
 	EV::curtE = new GRBVar * [nEnode]; // continuous curtailment variable
 
@@ -199,8 +209,16 @@ void  Populate_EV(GRBModel& Model)
 		EV::curtE[n] = Model.addVars((int)Te.size(), GRB_CONTINUOUS);
 		EV::YeCD[n] = Model.addVars(neSt, GRB_CONTINUOUS);
 		EV::YeLev[n] = Model.addVars(neSt, GRB_CONTINUOUS);
-		EV::YeStr[n] = Model.addVars(neSt, GRB_BINARY);
+		/*if (Setting::relax_int_vars)
+		{
+			EV::YeStr[n] = Model.addVars(neSt, GRB_CONTINUOUS);
 
+		}
+		else
+		{
+		EV::YeStr[n] = Model.addVars(neSt, GRB_BINARY);
+		}*/
+		EV::YeStr[n] = Model.addVars(neSt, GRB_BINARY);
 		EV::prod[n] = new GRBVar * [Te.size()];
 		EV::eSch[n] = new GRBVar * [Te.size()];
 		EV::eSdis[n] = new GRBVar * [Te.size()];
@@ -382,7 +400,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	// 1) existing types can not be established because there are new equivalent types
 	// 2) new types cannot be decommissioned
 	// 3) no new wind-offshore can be established as all buses are located in-land
-	// 4) turn off dfo and coal plants 
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
@@ -393,10 +410,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::EV::Xest[n][i] == 0);
 			}
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal")
+			/*if (Plants[i].type == "dfo" || Plants[i].type == "coal")
 			{
 				Model.addConstr(EV::EV::Xop[n][i] == 0);
-			}
+			}*/
 
 			if (Plants[i].is_exis == 1)
 			{
@@ -427,7 +444,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
+			//if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 			// Investment/decommission cost of plants
 			double s1 = (double)std::pow(1.0 / (1 + WACC), Plants[i].lifetime);
 			double capco = WACC / (1 - s1);
@@ -438,7 +455,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		// fixed cost (annual, so no iteration over time)
 		for (int i = 0; i < nPlt; i++)
 		{
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
+			//if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 			ex_fix += Plants[i].fix_cost * EV::Xop[n][i];
 		}
 		// var+fuel costs of plants
@@ -446,7 +463,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
-				if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
+				//if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 				// var cost
 				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
 
@@ -549,7 +566,8 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]);
 				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
 
-				if (t > 0 && !Setting::heuristics1_active) 
+				//if (t > 0 && !Setting::heuristics1_active) 
+				if (t > 0)
 				{
 					Model.addConstr(-Plants[i].rampD * EV::Xop[n][i] <= EV::prod[n][t][i] - EV::prod[n][t - 1][i]);
 					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * EV::Xop[n][i]);
@@ -608,7 +626,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			}
 			double dem = Enodes[n].demand[Te[t]];
 			// ignore transmission
-			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem); const_size++;
+			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
 			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
 		}
 	}
@@ -620,12 +638,14 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		int tb = Branches[br].to_bus;
 		for (int t = 0; t < Te.size(); t++)
 		{
-			if (Branches[br].is_exist == 1 && !Setting::heuristics1_active)
+			//if (Branches[br].is_exist == 1 && !Setting::heuristics1_active)
+			if (Branches[br].is_exist == 1)
 			{
 				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2);
 				Model.addConstr(-1e-2 <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
 			}
-			else if (!Setting::heuristics1_active)
+			//else if (!Setting::heuristics1_active)
+			else if (true)
 			{
 				// Big M = Branches[br].suscep * 24
 				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2 + Branches[br].suscep * 24 * (1 - EV::Ze[br]));
@@ -651,7 +671,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			for (int i = 0; i < nPlt; i++)
-			{
+			{				
 				if (Plants[i].type == "solar" || Plants[i].type == "wind" ||
 					Plants[i].type == "hydro" || Plants[i].type == "solar-UPV" ||
 					Plants[i].type == "wind-new" || Plants[i].type == "hydro-new")

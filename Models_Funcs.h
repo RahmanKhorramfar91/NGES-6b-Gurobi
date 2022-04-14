@@ -3,8 +3,11 @@
 #include "gurobi_c++.h"
 
 void Electricy_Network_Model();
-double Elec_feas_sol();
+double feas_sol(double& elec_LB, double& elec_UB,double& ng_obj, double& feas_gap);
 void NG_Network_Model();
+
+
+
 
 double Integrated_Model();
 
@@ -109,7 +112,8 @@ struct EV
 	static double** val_Xop;
 	static double** val_Xest;
 	static double** val_Xdec;
-	static double* val_Ze;	
+	static double* val_Ze;
+	static double** val_YeStr;
 	static double MIP_gap;
 };
 

@@ -111,20 +111,17 @@ struct branch
 	double suscep;
 	double maxFlow;
 	double length;
-	double cost;
 	int is_exist;
-	branch(int f, int t, double l, double c, int ie, double m, double s)
+	branch(int f, int t, double l, int ie, double m, double s)
 	{
 		this->from_bus = f;
 		this->to_bus = t;
 		this->length = l;
-		this->cost = c;
 		this->is_exist = ie;
 		this->maxFlow = m;
 		this->suscep = s;
 	}
 	static vector<branch> read_branch_data(int nBus, string FN,
-		string FN0, string FN1, string FN2, string FN3, string FN4,
 		map<int, vector<int>>& Le);
 
 };

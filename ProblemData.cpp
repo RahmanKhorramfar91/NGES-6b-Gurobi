@@ -231,66 +231,90 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3, vector<plant>& 
 
 }
 
-
-vector<branch> branch::read_branch_data(int nBus, string FN,
-	string FN0, string FN1, string FN2, string FN3, string FN4, map<int, vector<int>>& Le)
+vector<branch> branch::read_branch_data(int nBus, string FN, map<int, vector<int>>& Le)
 {
 
 	vector<branch> Branches;
-	ifstream fid(FN); // branch per node
-	ifstream fid0(FN0); // branch
-	ifstream fid1(FN1); // length
-	ifstream fid2(FN2); // is_exist
-	ifstream fid3(FN3); // max flow
-	ifstream fid4(FN4); // Susceptance
+	ifstream fid(FN); // to from, max flow, 
 
-	string line, line0, line1, line2, line3, line4;
+	string line;
 	int lc = 0;
-	for (int i = 0; i < nBus; i++)
+	while (getline(fid, line))
 	{
-		getline(fid, line);// branch per node
-		getline(fid0, line0);// branch
-		getline(fid1, line1);// length
-		getline(fid2, line2); // is_exist
-		getline(fid3, line3); // max flow
-		getline(fid4, line4); // suscept
-
+		// to , from, is_exist, maxflow, susceptance, distance
 		std::istringstream iss(line);
-		std::istringstream iss0(line0);
-		std::istringstream iss1(line1);
-		std::istringstream iss2(line2);
-		std::istringstream iss3(line3);
-		std::istringstream iss4(line4);
-
-		double sn;
-		iss >> sn;
-		if ((int)sn == 0) { continue; }
-
-
-		for (int j = 0; j < (int)sn; j++)
-		{
-			double s0, s1, s2, s3, s4;
-			iss0 >> s0;
-			iss1 >> s1;
-			iss2 >> s2;
-			iss3 >> s3;
-			iss4 >> s4;
-
-			branch nb(i, (int)s0, s1, s1, (int)s2, s3, s4);
-			//Lnm[i*200+ (int)s0] = vector<int>();
-			Le[i * 200 + (int)s0].push_back(lc);
-			lc++;
-			Branches.push_back(nb);
-		}
+		double to, from, ise, maxF, sus, dist;
+		iss >> from >> to >> ise >> maxF >> sus >> dist;
+		branch nb(from, to, dist, ise, maxF, sus);
+		//Lnm[i*200+ (int)s0] = vector<int>();
+		Le[from * 200 + (int)to].push_back(lc);
+		lc++;
+		Branches.push_back(nb);
 	}
-	fid0.close();
-	fid1.close();
-	fid2.close();
-	fid3.close();
-
 	return Branches;
 
 }
+
+
+//vector<branch> branch::read_branch_data_old_version(int nBus, string FN,
+//	string FN0, string FN1, string FN2, string FN3, string FN4, map<int, vector<int>>& Le)
+//{
+//
+//	vector<branch> Branches;
+//	ifstream fid(FN); // branch per node
+//	ifstream fid0(FN0); // branch
+//	ifstream fid1(FN1); // length
+//	ifstream fid2(FN2); // is_exist
+//	ifstream fid3(FN3); // max flow
+//	ifstream fid4(FN4); // Susceptance
+//
+//	string line, line0, line1, line2, line3, line4;
+//	int lc = 0;
+//	for (int i = 0; i < nBus; i++)
+//	{
+//		getline(fid, line);// branch per node
+//		getline(fid0, line0);// branch
+//		getline(fid1, line1);// length
+//		getline(fid2, line2); // is_exist
+//		getline(fid3, line3); // max flow
+//		getline(fid4, line4); // suscept
+//
+//		std::istringstream iss(line);
+//		std::istringstream iss0(line0);
+//		std::istringstream iss1(line1);
+//		std::istringstream iss2(line2);
+//		std::istringstream iss3(line3);
+//		std::istringstream iss4(line4);
+//
+//		double sn;
+//		iss >> sn;
+//		if ((int)sn == 0) { continue; }
+//
+//
+//		for (int j = 0; j < (int)sn; j++)
+//		{
+//			double s0, s1, s2, s3, s4;
+//			iss0 >> s0;
+//			iss1 >> s1;
+//			iss2 >> s2;
+//			iss3 >> s3;
+//			iss4 >> s4;
+//
+//			branch nb(i, (int)s0, s1, s1, (int)s2, s3, s4);
+//			//Lnm[i*200+ (int)s0] = vector<int>();
+//			Le[i * 200 + (int)s0].push_back(lc);
+//			lc++;
+//			Branches.push_back(nb);
+//		}
+//	}
+//	fid0.close();
+//	fid1.close();
+//	fid2.close();
+//	fid3.close();
+//
+//	return Branches;
+//
+//}
 
 vector<gnode> gnode::read_gnode_data(string name)
 {
@@ -551,8 +575,7 @@ void Read_Data()
 	plant::read_VRE_profile("profile_hydro_hourly.txt",
 		"profile_wind_hourly.txt", "profile_solar_hourly.txt", Plants);
 
-	vector<branch> Branches = branch::read_branch_data(nEnode, "b2b_br_per_node.txt", "b2b_br.txt", "b2b_br_dist.txt",
-		"b2b_br_is_existing.txt", "b2b_br_maxFlow.txt", "b2b_br_Suscept.txt", Le);
+	vector<branch> Branches = branch::read_branch_data(nEnode, "Branches.txt", Le);
 
 
 
