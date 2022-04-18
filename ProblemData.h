@@ -61,8 +61,8 @@ struct plant
 	string type;
 	int num;  //0:'ng',1:'dfo',2:'solar',3:'wind',4:'wind_offshore', 5:'hydro',6:'coal',7:'nuclear'
 	int is_exis; // 1=the plant existing type (PowerSim Data), 0= the plant is new type (ATB)
-	int Umax; // maximum number of plants in a Enode
-	int capex; // dollar per MW
+	//int Umax; // maximum number of plants in a Enode
+	double capex; // dollar per plant
 	int fix_cost;//dollar per count of type i per year
 	int var_cost;//dollar per MWh
 	double emis_rate;//ton/MMBTU
@@ -72,15 +72,15 @@ struct plant
 	double Pmax;  // MW
 	double Pmin;
 	double rampU;
-	double rampD;
-	int emis_cost; //$/ton
+	//double rampD;
+	//int emis_cost; //$/ton
 	// revisit these paramters laters
 
 
 	vector<double> prod_profile;
 
-	plant(string t, int n, int ise, int cap, int f, int v, double emi, double hr, int lt, int dec,
-		double pmax, double pmin, double ru, double rd, int emic, int max_num)
+	plant(string t, int n, int ise, int f, int v, double emi, double hr, int lt, int dec,
+		double pmax, double pmin, double ru, double cap)
 	{
 		this->type = t;
 		this->num = n;
@@ -95,9 +95,9 @@ struct plant
 		this->Pmax = pmax;
 		this->Pmin = pmin;
 		this->rampU = ru;
-		this->rampD = rd;
-		this->emis_cost = emic;
-		this->Umax = max_num;
+		//this->rampD = rd;
+		//this->emis_cost = emic;
+		//this->Umax = max_num;
 	}
 
 	static vector<plant> read_new_plant_data(string FileName);

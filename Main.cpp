@@ -53,12 +53,12 @@ int main(int argc, char* argv[])
 	else
 	{
 		Setting::Num_rep_days = 2;   // 2, 7, 14, 52, 365
-		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
-		Setting::Approach_2_active = false; // default = false
-		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::Approach_1_active = false; // approach 1: integrated, 2: decoupled 
+		Setting::Approach_2_active = true; // default = false
+		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = true;
 		Setting::xi_val = 0.1 * PGC;//0.01,0.05, 0.1,0.15,0.2,;
-		Setting::Emis_lim = 0.55 * Poss_Emis;    // tons
+		Setting::Emis_lim = 0.65 * Poss_Emis;    // tons
 		Setting::RPS = 0.1;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.1 * PGC; //0.05,0.1,0.2,
 		Setting::cplex_gap = 0.02;  // 2%
@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 	double pipe_per_mile = 7e+5;//https://www.gem.wiki/Oil_and_Gas_Pipeline_Construction_Costs
 	int SVL_lifetime = 40; //https://www.hydrogen.energy.gov/pdfs/19001_hydrogen_liquefaction_costs.pdf
 	int pipe_lifespan = 50; // years, https://www.popsci.com/story/environment/oil-gas-pipelines-property/#:~:text=There%20are%20some%203%20million,%2C%20power%20plants%2C%20and%20homes.&text=Those%20pipelines%20have%20an%20average%20lifespan%20of%2050%20years.
-	double Ng_demand_growth_by_2050 = 0.5; // 50% https://www.eia.gov/todayinenergy/detail.php?id=42342
+	//double Ng_demand_growth_by_2050 = 0.5; // 50% https://www.eia.gov/todayinenergy/detail.php?id=42342
 	double NG_emis_rate = 0.05831;  // tons of CO2 per MMBtu
 #pragma endregion
 

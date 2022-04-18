@@ -158,7 +158,7 @@ void  Populate_EV(GRBModel& Model)
 		EV::Ze = Model.addVars(nBr, GRB_BINARY);
 	}*/
 	EV::Ze = Model.addVars(nBr, GRB_BINARY);
-	
+
 	EV::theta = new GRBVar * [nEnode]; // continuous phase angle
 	EV::curtE = new GRBVar * [nEnode]; // continuous curtailment variable
 
@@ -399,25 +399,41 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma region Set some variables
 	// 1) existing types can not be established because there are new equivalent types
 	// 2) new types cannot be decommissioned
-	// 3) no new wind-offshore can be established as all buses are located in-land
+	// 3) no new wind-offshore on some location (not yet implemented)
+	// 4) no new nuclear
+	// 5) turn off df0/coal
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
 			//// do not allow establishment off-shore wind and hydro plants
 			//Model.addConstr(EV::Xdec[n][5] == 0);
-			if (Plants[i].type == "wind-offshore-new" || Plants[i].type == "hydro-new")
+			if (Plants[i].type == "dfo"|| Plants[i].type == "coal")
 			{
-				Model.addConstr(EV::EV::Xest[n][i] == 0);
+				Model.addConstr(EV::Xop[n][i] == 0);
 			}
-			/*if (Plants[i].type == "dfo" || Plants[i].type == "coal")
+
+			if (Plants[i].type == "hydro-new")
 			{
-				Model.addConstr(EV::EV::Xop[n][i] == 0);
-			}*/
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+			if (Plants[i].type == "wind-offshore-new") 
+			{
+				if (n==3)// except for Massachusetts
+				{
+					continue;
+				}
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+
+			if (Plants[i].type == "nuclear-new")
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
 
 			if (Plants[i].is_exis == 1)
 			{
-				Model.addConstr(EV::EV::Xest[n][i] == 0);
+				Model.addConstr(EV::Xest[n][i] == 0);
 			}
 			else
 			{
@@ -444,7 +460,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
-			//if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 			// Investment/decommission cost of plants
 			double s1 = (double)std::pow(1.0 / (1 + WACC), Plants[i].lifetime);
 			double capco = WACC / (1 - s1);
@@ -455,7 +470,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		// fixed cost (annual, so no iteration over time)
 		for (int i = 0; i < nPlt; i++)
 		{
-			//if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 			ex_fix += Plants[i].fix_cost * EV::Xop[n][i];
 		}
 		// var+fuel costs of plants
@@ -463,7 +477,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
-				//if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 				// var cost
 				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
 
@@ -484,10 +497,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				}
 
 				// emission cost (no longer needed)
-				if (Plants[i].type != "ng" && Plants[i].type != "CT" && Plants[i].type != "CC" && Plants[i].type != "CC-CCS")
+				/*if (Plants[i].type != "ng" && Plants[i].type != "CT" && Plants[i].type != "CC" && Plants[i].type != "CC-CCS")
 				{
 					ex_emis += time_weight[t] * Plants[i].emis_cost * Plants[i].emis_rate * EV::prod[n][t][i];
-				}
+				}*/
 			}
 
 			// load curtailment cost
@@ -531,7 +544,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma endregion
 
 #pragma region Electricity Network Constraints
-
 	// C1, C2: number of generation units at each node
 	int existP = 0;
 	for (int n = 0; n < nEnode; n++)
@@ -551,8 +563,8 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::Xop[n][i] == -EV::Xdec[n][i] + EV::Xest[n][i]);
 			}
-			//C2: maximum number of each plant type at each node
-			Model.addConstr(EV::Xop[n][i] <= Plants[i].Umax);
+			//C2: maximum number of each plant type at each node (not necessary)
+			//Model.addConstr(EV::Xop[n][i] <= Plants[i].Umax);
 		}
 	}
 
@@ -562,19 +574,22 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			for (int i = 0; i < nPlt; i++)
-			{
-				Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]);
+			{				
+				//Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]); since we don't consider unit commitment in this model
 				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
 
 				//if (t > 0 && !Setting::heuristics1_active) 
 				if (t > 0)
 				{
-					Model.addConstr(-Plants[i].rampD * EV::Xop[n][i] <= EV::prod[n][t][i] - EV::prod[n][t - 1][i]);
+					//Model.addConstr(-Plants[i].rampD * EV::Xop[n][i] <= EV::prod[n][t][i] - EV::prod[n][t - 1][i]);
 					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * EV::Xop[n][i]);
 				}
 			}
 		}
 	}
+
+
+
 
 	// C5, C6: flow limit for electricity
 	for (int br = 0; br < nBr; br++)
@@ -671,7 +686,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			for (int i = 0; i < nPlt; i++)
-			{				
+			{
 				if (Plants[i].type == "solar" || Plants[i].type == "wind" ||
 					Plants[i].type == "hydro" || Plants[i].type == "solar-UPV" ||
 					Plants[i].type == "wind-new" || Plants[i].type == "hydro-new")
@@ -741,7 +756,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 						(EV::eSdis[n][t][r] / Estorage[r].eff_disCh));
 				}
 				Model.addConstr(EV::YeCD[n][r] >= EV::eSdis[n][t][r]);
-				Model.addConstr(EV::YeCD[n][r] >= EV::EV::eSch[n][t][r]);
+				Model.addConstr(EV::YeCD[n][r] >= EV::eSch[n][t][r]);
 
 				Model.addConstr(EV::YeLev[n][r] >= EV::eSlev[n][t][r]);
 			}
@@ -1062,7 +1077,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 		{
 			GV::Xstr[j].set(GRB_DoubleAttr_Start, GV::val_Xstr[j]);
 		}
-		
+
 		Model.update();
 	}
 
@@ -1158,7 +1173,7 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
-				if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
+				if (Plants[i].type == "dfo" || Plants[i].type == "coal" || Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
 				{
 					ex_E_emis += time_weight[t] * Plants[i].emis_rate * Plants[i].heat_rate * EV::prod[n][t][i];
 				}

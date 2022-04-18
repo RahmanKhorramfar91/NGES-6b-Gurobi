@@ -113,8 +113,8 @@ void enode::read_exist_plt_data(string FileName, vector<enode>& Enodes)
 	{
 		std::istringstream iss(line);
 		string type;
-		double bus_num, Pmax, Pmin, g1, g2, g3, count;
-		iss >> bus_num >> type >> Pmax >> Pmin >> g1 >> g2 >> g3 >> count;
+		double bus_num, Pmax, Pmin, g1, g2, g3, g4, g5, count;
+		iss >> bus_num >> type >> Pmax >> Pmin >> g1 >> g2 >> g3 >> g4 >> g5 >> count;
 		int bn = (int)bus_num;
 		Enodes[bn].Init_plt_types.push_back(type);
 		int ind1 = sym2ind[type];
@@ -162,13 +162,13 @@ vector<plant> plant::read_new_plant_data(string name)
 		//	string t, int n, int ise, int cap, int f, int v, double emi, double hr, int lt, int dec,
 			//	double pmax, double ru, double rd, int emic
 		std::istringstream iss(line);
-		double n, ise, cap, f, v, emi, hr, lt, dec, pmax, pmin, ru, rd, emic, numM;
+		double n, ise, cap, f, v, emi, hr, lt, dec, pmax, pmin, ru;
 		//double  n, capex,pmax, pmin,ru,rd, fix_cost, var_cost, decom_cost, emis_cost, lifespan;
 		string type;
 		double h, emis_rate;
-		iss >> type >> n >> ise >> cap >> f >> v >> emi >> hr >> lt >> dec >> pmax >> pmin >> ru >> rd >> emic >> numM;
+		iss >> type >> n >> ise >> cap >> f >> v >> emi >> hr >> lt >> dec >> pmax >> pmin >> ru;
 		//iss >> type >> n >> capex >>pmax>>pmin>>ru>>rd>> fix_cost >> var_cost >> h >> emis_rate >> decom_cost >> emis_cost >> lifespan;
-		plant np(type, (int)n, (int)ise, (int)cap, (int)f, (int)v, emi, hr, (int)lt, (int)dec, pmax, pmin, ru, rd, (int)emic, (int)numM);
+		plant np(type, (int)n, (int)ise, (int)f, (int)v, emi, hr, (int)lt, (int)dec, pmax, pmin, ru, cap);
 		NewPlants.push_back(np);
 	}
 	fid.close();
