@@ -175,15 +175,15 @@ void Get_EV_vals(GRBModel Model)
 		}
 	}
 
-	double** curtS = new double* [nEnode];
+	EV::val_curtE = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
-		curtS[n] = new double[Te.size()]();
+		EV::val_curtE[n] = new double[Te.size()]();
 		for (int t = 0; t < Te.size(); t++)
 		{
 			EV::val_total_curt += time_weight[t] * EV::curtE[n][t].get(GRB_DoubleAttr_X);
-			//if (t > periods2print) { break; }
-			//curtS[n][t] = EV::curtE[n][t]);
+
+			EV::val_curtE[n][t] = EV::curtE[n][t].get(GRB_DoubleAttr_X);
 			//if (curtS[n][t] > 10e-3)
 			//{
 			//	//	std::cout << "curtE[" << n << "][" << t << "] = " << curtS[n][t] << endl;
@@ -280,26 +280,19 @@ void Get_EV_vals(GRBModel Model)
 	//	}
 	//}
 
-	//double*** eSlevS = new double** [nEnode];
-	//for (int n = 0; n < nEnode; n++)
-	//{
-	//	eSlevS[n] = new double* [Te.size()];
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > periods2print) { break; }
-
-	//		eSlevS[n][t] = new double[nPlt]();
-	//		for (int i = 0; i < neSt; i++)
-	//		{
-	//			eSlevS[n][t][i] = EV::eSlev[n][t][i]);
-	//			if (eSlevS[n][t][i] > 10e-3)
-	//			{
-	//				//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
-	//				fid << "eS_lev[" << n << "][" << t << "][" << i << "] = " << eSlevS[n][t][i] << endl;
-	//			}
-	//		}
-	//	}
-	//}
+	EV::val_eSlev = new double** [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_eSlev[n] = new double* [Te.size()];
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_eSlev[n][t] = new double[nPlt]();
+			for (int i = 0; i < neSt; i++)
+			{
+				EV::val_eSlev[n][t][i] = EV::eSlev[n][t][i].get(GRB_DoubleAttr_X);
+			}
+		}
+	}
 	//fid.close();
 #pragma endregion
 }
@@ -502,7 +495,7 @@ void Get_GV_vals(GRBModel Model)
 	for (int j = 0; j < nSVL; j++)
 	{
 		GV::val_vapor[j] += GV::Xvpr[j].get(GRB_DoubleAttr_X);
-		
+
 		/*if (s1 > 0.001)
 		{
 			fid2 << "Xvpr[" << j << "]= " << s1 << endl;
@@ -556,9 +549,104 @@ void Get_GV_vals(GRBModel Model)
 
 void Print_Results(double Elapsed_time, double status)
 {
+#pragma region Fetch Data
+	vector<gnode> Gnodes = Params::Gnodes;
+	vector<pipe> PipeLines = Params::PipeLines;
+	vector<enode> Enodes = Params::Enodes;
+	vector<plant> Plants = Params::Plants;
+	vector<eStore> Estorage = Params::Estorage;
+	vector<branch> Branches = Params::Branches;
+	int nEnode = (int)Enodes.size();
+	int nPlt = (int)Plants.size();
+	int nBr = (int)Branches.size();
+	int neSt = (int)Estorage.size();
+	vector<int> Tg = Params::Tg;
+	vector<int> Te = Params::Te;
+	vector<int> time_weight = Params::time_weight;
+	double pi = 3.141592;
+	int nGnode = (int)Gnodes.size();
+	double WACC = Params::WACC;
+	int trans_unit_cost = Params::trans_unit_cost;
+	int trans_line_lifespan = Params::trans_line_lifespan;
+	double NG_price = Params::NG_price;
+	double dfo_pric = Params::dfo_pric;
+	double coal_price = Params::coal_price;
+	double nuclear_price = Params::nuclear_price;
+	double E_curt_cost = Params::E_curt_cost;
+	double G_curt_cost = Params::G_curt_cost;
+	double pipe_per_mile = Params::pipe_per_mile;
+	int pipe_lifespan = Params::pipe_lifespan;
+	int battery_lifetime = Params::battery_lifetime;
+	map<int, vector<int>> Le = Params::Le;
+	vector<int> RepDaysCount = Params::RepDaysCount;
+#pragma endregion
+
+#pragma region Print all decision varialbes of both networks
+	ofstream fid0;
+	// only for approach 1 or  case 1
+	int is_given = (std::round(Setting::is_xi_given));
+	int em_lim = 100 * (Setting::Emis_lim);
+	int rps = 100*(Setting::RPS);
+	int rng = 100 * Setting::RNG_cap;
+	string name = "Rep " + std::to_string(Setting::Num_rep_days) +
+		"-A1" + "-case " + std::to_string(Setting::Case) + "-xi_given " + std::to_string(is_given)
+		+ "-emis_lim " + std::to_string(em_lim) + "-RPS " + std::to_string(rps)
+		+ "-RNG " + std::to_string(rng) + ".csv";
+
+
+	if (Setting::print_all_vars)
+	{
+		fid0.open(name, std::ios::app);
+
+		for (int i = 0; i < nPlt; i++)
+		{
+			fid0 << "\nProd[" << i << "] " << ",";
+
+			for (int t = 0; t < Te.size(); t++)
+			{
+				double node_prod = 0;
+				for (int n = 0; n < nEnode; n++)
+				{
+					node_prod += EV::val_prod[n][t][i];
+				}
+				fid0 << node_prod << ",";
+			}
+		}
+		fid0 << "\n\nCurt";
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double curT = 0;
+			for (int n = 0; n < nEnode; n++)
+			{
+				curT += EV::val_curtE[n][t];
+			}
+			fid0 << "," << curT;
+		}
+
+		for (int i = 0; i < neSt; i++)
+		{
+			fid0 << "\neSlev[" << i << "] " << ",";
+
+			for (int t = 0; t < Te.size(); t++)
+			{
+				double node_prod = 0;
+				for (int n = 0; n < nEnode; n++)
+				{
+					node_prod += EV::val_eSlev[n][t][i];
+				}
+				fid0 << node_prod << ",";
+			}
+		}
+		fid0.close();
+	}
+
+
+#pragma endregion
+
+
 #pragma region Print in CSV file
 	ofstream fid;
-	string name = "NGES_Results.csv";
+	name = "NGES_Results.csv";
 	fid.open(name, std::ios::app);
 	if (Setting::print_results_header)
 	{

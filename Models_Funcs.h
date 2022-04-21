@@ -60,6 +60,10 @@ struct Setting
 	static bool DGSP_active;
 	static bool DESP_active;
 	static double RNG_cap;
+	static bool print_all_vars;
+
+	static double PGC;
+	static double PE;
 };
 
 struct EV
@@ -115,6 +119,8 @@ struct EV
 	static double* val_Ze;
 	static double** val_YeStr;
 	static double MIP_gap;
+	static double** val_curtE;
+	static double*** val_eSlev;
 };
 
 struct GV

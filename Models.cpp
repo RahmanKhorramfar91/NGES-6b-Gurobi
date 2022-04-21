@@ -31,10 +31,10 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
 	// Coupling 1
 	Model.addConstr(CV::xi == ex_xi);
-	Model.addConstr(ex_xi == Setting::xi_val);
+	Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
 
 	// Coupling 2
-	Model.addConstr(ex_E_emis <= Setting::Emis_lim);
+	Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 
 	Model.set(GRB_DoubleParam_TimeLimit, 3600);
@@ -66,10 +66,10 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Coupling_Constraints(Model2, ex_xi, ex_NG_emis, ex_E_emis);
 	// Coupling 1
 	Model2.addConstr(CV::xi == ex_xi);
-	Model2.addConstr(ex_xi == Setting::xi_val);
+	Model2.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
 
 	// Coupling 2
-	Model2.addConstr(ex_E_emis <= Setting::Emis_lim);
+	Model2.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
 	Model2.addConstr(ex_E_emis == CV::E_emis);
 	//Model.addConstr(CV::NG_emis);
 
@@ -128,11 +128,11 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Setting::DGSP_active = false;//back to default
 	// Coupling 1: xi must be given
 	Model3.addConstr(CV::xi == ex_xi3);
-	//Model3.addConstr(ex_xi3 == Setting::xi_val);
+	//Model3.addConstr(ex_xi3 == Setting::xi_val*Setting::PGC);
 
 
 	// Coupling 2
-	double rhs = Setting::Emis_lim - CV::used_emis_cap;
+	double rhs = Setting::Emis_lim*Setting::PE - CV::used_emis_cap;
 	rhs = std::max(rhs, 0 + 0.001);
 	Model3.addConstr(ex_NG_emis3 <= rhs);
 	Model3.addConstr(ex_NG_emis3 == CV::NG_emis);
@@ -282,12 +282,12 @@ double Integrated_Model()
 
 	if (Setting::Case == 1)
 	{
-		Model.addConstr(CV::xi == 100);
+		Model.addConstr(CV::xi == 100); // just to populate CV::xi
 	}
 	else if (Setting::is_xi_given)
 	{
 		cout << "\n\n if xi given" << endl;
-		Model.addConstr(ex_xi == Setting::xi_val);
+		Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
 		Model.addConstr(CV::xi == ex_xi);
 	}
 	else
@@ -303,13 +303,13 @@ double Integrated_Model()
 	}
 	if (Setting::Case == 2)
 	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim);
+		Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
 	if (Setting::Case == 3)
 	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim);
+		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim*Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
@@ -384,10 +384,10 @@ double DESP()
 
 	// Coupling 1
 	Model.addConstr(CV::xi == ex_xi);
-	Model.addConstr(ex_xi == Setting::xi_val);
+	Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
 
 	// Coupling 2
-	Model.addConstr(ex_E_emis <= Setting::Emis_lim);
+	Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
 	//Model.addConstr(ex_NG_emis <= 2.6e6);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 	//Model.addConstr(CV::NG_emis);
@@ -442,11 +442,11 @@ double DGSP()
 	Setting::DGSP_active = false;//back to default
 	// Coupling 1: xi must be given
 	Model.addConstr(CV::xi == ex_xi);
-	//Model.addConstr(ex_xi == Setting::xi_val);
+	//Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
 
 
 	// Coupling 2
-	double rhs = Setting::Emis_lim - CV::used_emis_cap;
+	double rhs = Setting::Emis_lim*Setting::PE - CV::used_emis_cap;
 	rhs = std::max(rhs, 0 + 0.001);
 	Model.addConstr(ex_NG_emis <= rhs);
 	Model.addConstr(ex_NG_emis == CV::NG_emis);

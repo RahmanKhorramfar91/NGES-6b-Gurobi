@@ -23,6 +23,9 @@ double Setting::RNG_cap;
 int Setting::Case;
 bool Setting::heuristics1_active;
 bool Setting::warm_start_active;
+bool Setting::print_all_vars;
+double Setting::PGC;
+double Setting::PE;
 #pragma endregion
 
 int main(int argc, char* argv[])
@@ -35,7 +38,8 @@ int main(int argc, char* argv[])
 	double PGC = total_ng_yearly_demand + total_yearly_gen_demand;//1.142E+09 possible gas consumption
 	double Poss_Emis = PGC * 0.053; //8.2e7
 	//440834343
-
+	Setting::PGC = PGC;
+	Setting::PE = Poss_Emis;
 	if (argc > 1)
 	{
 		Setting::Num_rep_days = atoi(argv[1]);
@@ -43,25 +47,25 @@ int main(int argc, char* argv[])
 		Setting::Approach_2_active = atoi(argv[3]);
 		Setting::Case = atoi(argv[4]);
 		Setting::is_xi_given = atoi(argv[5]);
-		Setting::xi_val = atof(argv[6]) * PGC;
-		Setting::Emis_lim = atof(argv[7]) * Poss_Emis;
+		Setting::xi_val = atof(argv[6]);
+		Setting::Emis_lim = atof(argv[7]);
 		Setting::RPS = atof(argv[8]);
-		Setting::RNG_cap = atof(argv[9]) * PGC;
+		Setting::RNG_cap = atof(argv[9]);
 		Setting::cplex_gap = atof(argv[10]);  // 1%
 		Setting::CPU_limit = atoi(argv[11]);   // seconds
 	}
 	else
 	{
 		Setting::Num_rep_days = 2;   // 2, 7, 14, 52, 365
-		Setting::Approach_1_active = false; // approach 1: integrated, 2: decoupled 
-		Setting::Approach_2_active = true; // default = false
-		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
-		Setting::is_xi_given = true;
-		Setting::xi_val = 0.1 * PGC;//0.01,0.05, 0.1,0.15,0.2,;
-		Setting::Emis_lim = 0.65 * Poss_Emis;    // tons
-		Setting::RPS = 0.1;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.1 * PGC; //0.05,0.1,0.2,
-		Setting::cplex_gap = 0.02;  // 2%
+		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
+		Setting::Approach_2_active = false; // default = false
+		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::is_xi_given = false;
+		Setting::xi_val = 0.1;//0.01,0.05, 0.1,0.15,0.2,;
+		Setting::Emis_lim = 0.85;    // tons
+		Setting::RPS = 0.3;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RNG_cap = 0.1; //0.05,0.1,0.2,
+		Setting::cplex_gap = 0.05;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
 
@@ -73,6 +77,7 @@ int main(int argc, char* argv[])
 	//Setting::heuristics1_active = true;
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
+	Setting::print_all_vars = true;
 #pragma endregion
 
 #pragma region  Other parameters   
@@ -139,12 +144,12 @@ int main(int argc, char* argv[])
 	//double gg = DESP();
 	if (only_feas_sol)
 	{
-		double UB = feas_sol(elec_LB,elec_UB,ng_obj,feas_gap);
+		double UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 		//Print_Results(Elapsed, EV::val_e_system_cost + GV::val_NG_system_cost);
 		std::cout << "\n\n \t\t Elapsed time: " << Elapsed;
-		std::cout << "\t\t System LB: " << elec_LB+ng_obj;
+		std::cout << "\t\t System LB: " << elec_LB + ng_obj;
 		std::cout << "\t\t System UB: " << elec_UB + ng_obj << endl;
 		std::cout << "\n\n";
 		return 0;

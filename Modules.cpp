@@ -53,6 +53,8 @@ double** EV::val_Xdec;
 double* EV::val_Ze;
 double EV::MIP_gap;
 double** EV::val_YeStr;
+double** EV::val_curtE;
+double*** EV::val_eSlev;
 #pragma endregion
 
 #pragma region NG struct
@@ -408,7 +410,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			//// do not allow establishment off-shore wind and hydro plants
 			//Model.addConstr(EV::Xdec[n][5] == 0);
-			if (Plants[i].type == "dfo"|| Plants[i].type == "coal")
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal")
 			{
 				Model.addConstr(EV::Xop[n][i] == 0);
 			}
@@ -417,9 +419,9 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::Xest[n][i] == 0);
 			}
-			if (Plants[i].type == "wind-offshore-new") 
+			if (Plants[i].type == "wind-offshore-new")
 			{
-				if (n==3)// except for Massachusetts
+				if (n == 3)// except for Massachusetts
 				{
 					continue;
 				}
@@ -461,6 +463,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int i = 0; i < nPlt; i++)
 		{
 			// Investment/decommission cost of plants
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 			double s1 = (double)std::pow(1.0 / (1 + WACC), Plants[i].lifetime);
 			double capco = WACC / (1 - s1);
 			ex_est += capco * Plants[i].capex * EV::Xest[n][i];
@@ -470,6 +473,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		// fixed cost (annual, so no iteration over time)
 		for (int i = 0; i < nPlt; i++)
 		{
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 			ex_fix += Plants[i].fix_cost * EV::Xop[n][i];
 		}
 		// var+fuel costs of plants
@@ -477,6 +481,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
+				if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
 				// var cost
 				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
 
@@ -514,7 +519,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			double s1 = (double)std::pow(1.0 / (1 + WACC), battery_lifetime);
 			double capco = WACC / (1 - s1);
 			ex_elec_str += capco * Estorage[r].power_cost * EV::YeCD[n][r] + capco * Estorage[r].energy_cost * EV::YeLev[n][r];
-			ex_elec_str += Estorage[r].FOM * EV::YeStr[n][r]; // fixed cost per kw per year
+			ex_elec_str += Estorage[r].pFOM * EV::YeCD[n][r]+ Estorage[r].eFOM * EV::YeLev[n][r]; // fixed cost per kw per year
 		}
 	}
 
@@ -574,7 +579,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			for (int i = 0; i < nPlt; i++)
-			{				
+			{
 				//Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]); since we don't consider unit commitment in this model
 				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
 
@@ -582,7 +587,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				if (t > 0)
 				{
 					//Model.addConstr(-Plants[i].rampD * EV::Xop[n][i] <= EV::prod[n][t][i] - EV::prod[n][t - 1][i]);
-					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * EV::Xop[n][i]);
+					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
 				}
 			}
 		}
@@ -739,11 +744,11 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			for (int r = 0; r < neSt; r++)
 			{
-				if (t == Te.size() - 1)
+				/*if (t == Te.size() - 1)
 				{
 					Model.addConstr(EV::eSlev[n][t][r] <= EV::eSlev[n][0][r]);
-				}
-				else if (t == 0)
+				}*/
+				if (t == 0)
 				{
 					Model.addConstr(EV::eSlev[n][t][r] ==
 						Estorage[r].eff_ch * EV::eSch[n][t][r] -
@@ -757,20 +762,38 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				}
 				Model.addConstr(EV::YeCD[n][r] >= EV::eSdis[n][t][r]);
 				Model.addConstr(EV::YeCD[n][r] >= EV::eSch[n][t][r]);
-
 				Model.addConstr(EV::YeLev[n][r] >= EV::eSlev[n][t][r]);
 			}
 		}
 	}
+
+	// start and ending of storage should be the same in case of using rep. days
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int r = 0; r < neSt; r++)
+		{
+			for (int k = 0; k < Tg.size(); k++)
+			{
+				int str = k * 24;
+				int end = (k+1) * 24-1;
+				Model.addConstr(EV::eSlev[n][str][r] == EV::eSlev[n][end][r]);
+			}
+		}
+	}
+
 
 	// C17: if an storage established or not
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int r = 0; r < neSt; r++)
 		{
-			Model.addConstr(EV::YeLev[n][r] <= 10e10 * EV::YeStr[n][r]);
+			Model.addConstr(EV::YeLev[n][r] <= 10e8 * EV::YeStr[n][r]);
+			Model.addConstr(EV::YeCD[n][r] <= EV::YeLev[n][r]);
 		}
 	}
+
+
+
 #pragma endregion
 
 #pragma region add the warm start solution
@@ -965,7 +988,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 			exp_RNG += RepDaysCount[tau] * GV::curtRNG[k][tau];
 		}
 	}
-	Model.addConstr(exp_RNG <= Params::RNG_cap);
+	Model.addConstr(exp_RNG <= Params::RNG_cap* Setting::PGC);
 
 	//C5: storage balance
 	for (int j = 0; j < nSVL; j++)
@@ -1084,7 +1107,6 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 #pragma endregion
 
 }
-
 
 void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_emis, GRBLinExpr& ex_E_emis)
 {

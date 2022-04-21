@@ -132,14 +132,16 @@ struct eStore
 	int power_cost; // &/MW
 	double eff_ch;  // charge efficiency
 	double eff_disCh; // discharge efficiency
-	double FOM; // fixed operating and maintanence cost
-	eStore(int en, int pow, double ch, double dis, double fom)
+	double eFOM; // energy related fixed operating and maintanence cost
+	double pFOM; // power related fixed operating and maintanence cost
+	eStore(int en, int pow, double ch, double dis, double efom, double pfom)
 	{
 		this->energy_cost = en;
 		this->power_cost = pow;
 		this->eff_ch = ch;
 		this->eff_disCh = dis;
-		this->FOM = fom;
+		this->eFOM = efom;
+		this->pFOM = pfom;
 	}
 	static vector<eStore> read_elec_storage_data(string FileName);
 

@@ -183,9 +183,9 @@ vector<eStore> eStore::read_elec_storage_data(string name)
 	while (getline(fid, line))
 	{
 		std::istringstream iss(line);
-		double en, pow, ch, dis, fom;
-		iss >> en >> pow >> ch >> dis >> fom;
-		eStore str((int)en, (int)pow, ch, dis, fom);
+		double en, pow, ch, dis, efom,pfom;
+		iss >> en >> pow >> ch >> dis >> efom>>pfom;
+		eStore str((int)en, (int)pow, ch, dis, efom,pfom);
 		Estorage.push_back(str);
 	}
 	fid.close();
