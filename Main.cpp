@@ -56,16 +56,16 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 2;   // 2, 7, 14, 52, 365
+		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
-		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = false;
 		Setting::xi_val = 0.1;//0.01,0.05, 0.1,0.15,0.2,;
-		Setting::Emis_lim = 0.85;    // tons
-		Setting::RPS = 0.3;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.1; //0.05,0.1,0.2,
-		Setting::cplex_gap = 0.05;  // 2%
+		Setting::Emis_lim = 0.25;    // tons
+		Setting::RPS = 0.1;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RNG_cap = 0.3; //0.2,0.3,0.4,
+		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
 
@@ -85,18 +85,18 @@ int main(int argc, char* argv[])
 	double RNG_price = 20; // $$ per MMBtu
 	double WACC = 0.05;// Weighted average cost of capital to calculate CAPEX coefficient from ATB2021
 	int trans_unit_cost = 3500; // dollars per MW per mile of trans. line (ReEDS 2019)
-	int trans_line_lifespan = 40; // years
+	int trans_line_lifespan = 30; // years
 	int decom_lifetime = 2035 - 2016;
 	int battery_lifetime = 15; // 
 	double NG_price = 4;//per MMBTu, approximated from NG price in eia.gov
 	double dfo_pric = (1e6 / 1.37e5) * 3.5;//https://www.eia.gov/energyexplained/units-and-calculators/ and https://www.eia.gov/petroleum/gasdiesel/
 	double coal_price = 92 / 19.26; //https://www.eia.gov/coal/ and https://www.eia.gov/tools/faqs/faq.php?id=72&t=2#:~:text=In%202020%2C%20the%20annual%20average,million%20Btu%20per%20short%20ton.
-	double Nuclear_price = 0.69; // per MMBtu
+	double Nuclear_price = 0.72; // per MMBtu from 2045 ATB 2021
 	double E_curt_cost = 3e4; // $ per MWh;
 	double G_curt_cost = 3e3; // & per MMBtu
 	double pipe_per_mile = 7e+5;//https://www.gem.wiki/Oil_and_Gas_Pipeline_Construction_Costs
-	int SVL_lifetime = 40; //https://www.hydrogen.energy.gov/pdfs/19001_hydrogen_liquefaction_costs.pdf
-	int pipe_lifespan = 50; // years, https://www.popsci.com/story/environment/oil-gas-pipelines-property/#:~:text=There%20are%20some%203%20million,%2C%20power%20plants%2C%20and%20homes.&text=Those%20pipelines%20have%20an%20average%20lifespan%20of%2050%20years.
+	int SVL_lifetime = 30; //https://www.hydrogen.energy.gov/pdfs/19001_hydrogen_liquefaction_costs.pdf
+	int pipe_lifespan = 30; // years, https://www.popsci.com/story/environment/oil-gas-pipelines-property/#:~:text=There%20are%20some%203%20million,%2C%20power%20plants%2C%20and%20homes.&text=Those%20pipelines%20have%20an%20average%20lifespan%20of%2050%20years.
 	//double Ng_demand_growth_by_2050 = 0.5; // 50% https://www.eia.gov/todayinenergy/detail.php?id=42342
 	double NG_emis_rate = 0.05831;  // tons of CO2 per MMBtu
 #pragma endregion
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
 	double elec_UB = 0;
 	double ng_obj;
 	double feas_gap;
-	std::cout << "\n\n start Feasible solution procedure!" << endl;
+	//std::cout << "\n\n start Feasible solution procedure!" << endl;
 	//double gg = DESP();
 	if (only_feas_sol)
 	{
@@ -162,6 +162,8 @@ int main(int argc, char* argv[])
 		NG_Network_Model();
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
+		Print_Results(Elapsed, 0);
+		return 0;
 	}
 
 

@@ -77,7 +77,8 @@ struct plant
 	// revisit these paramters laters
 
 
-	vector<double> prod_profile;
+	vector<vector<double>> zonal_profile;
+	vector<double> Reg_coeffs_per_state;
 
 	plant(string t, int n, int ise, int f, int v, double emi, double hr, int lt, int dec,
 		double pmax, double pmin, double ru, double cap)
@@ -101,6 +102,7 @@ struct plant
 	}
 
 	static vector<plant> read_new_plant_data(string FileName);
+	static vector<plant> read_regional_coeffs(string FileName, vector<plant>& Plants);
 	static void read_VRE_profile(string FileName1, string FileName2, string FileName3, vector<plant>& Plants);
 };
 
@@ -134,6 +136,9 @@ struct eStore
 	double eff_disCh; // discharge efficiency
 	double eFOM; // energy related fixed operating and maintanence cost
 	double pFOM; // power related fixed operating and maintanence cost
+
+
+
 	eStore(int en, int pow, double ch, double dis, double efom, double pfom)
 	{
 		this->energy_cost = en;

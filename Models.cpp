@@ -280,11 +280,12 @@ double Integrated_Model()
 	GRBLinExpr ex_E_emis(0);
 	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
 
-	if (Setting::Case == 1)
-	{
-		Model.addConstr(CV::xi == 100); // just to populate CV::xi
-	}
-	else if (Setting::is_xi_given)
+	//if (Setting::Case == 1)
+	//{
+	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
+	//} else if to next 
+	
+	if (Setting::is_xi_given)
 	{
 		cout << "\n\n if xi given" << endl;
 		Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
@@ -296,11 +297,11 @@ double Integrated_Model()
 		Model.addConstr(CV::xi == ex_xi);
 	}
 
-	if (Setting::Case == 1)
+	/*if (Setting::Case == 1)
 	{
 		Model.addConstr(100 == CV::E_emis);
 		Model.addConstr(100 == CV::NG_emis);
-	}
+	}*/
 	if (Setting::Case == 2)
 	{
 		Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
