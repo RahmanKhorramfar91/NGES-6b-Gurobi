@@ -194,13 +194,13 @@ vector<plant> plant::read_new_plant_data(string name)
 		//	string t, int n, int ise, int cap, int f, int v, double emi, double hr, int lt, int dec,
 			//	double pmax, double ru, double rd, int emic
 		std::istringstream iss(line);
-		double n, ise, cap, f, v, emi, hr, lt, dec, pmax, pmin, ru;
+		double n, ise, capex, f, v, emi, hr, lt, dec, ru,max_gen,pmax,pmin;
 		//double  n, capex,pmax, pmin,ru,rd, fix_cost, var_cost, decom_cost, emis_cost, lifespan;
 		string type;
 		double h, emis_rate;
-		iss >> type >> n >> ise >> cap >> f >> v >> emi >> hr >> lt >> dec >> pmax >> pmin >> ru;
+		iss >> type >> n >> ise >> capex >> f >> v >> emi >> hr >> lt >> dec>>pmax>>pmin>> ru>>max_gen;
 		//iss >> type >> n >> capex >>pmax>>pmin>>ru>>rd>> fix_cost >> var_cost >> h >> emis_rate >> decom_cost >> emis_cost >> lifespan;
-		plant np(type, (int)n, (int)ise, (int)f, (int)v, emi, hr, (int)lt, (int)dec, pmax, pmin, ru, cap);
+		plant np(type, (int)n, (int)ise,capex, (int)f, (int)v, emi, hr, (int)lt, (int)dec,pmax,pmin, ru, max_gen);
 		NewPlants.push_back(np);
 	}
 	fid.close();
@@ -227,7 +227,7 @@ vector<eStore> eStore::read_elec_storage_data(string name)
 
 
 
-void plant::read_VRE_profile(string FN1, string FN2, string FN3, vector<plant>& Plants)
+void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vector<plant>& Plants)
 {
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
 {"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
@@ -237,6 +237,7 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3, vector<plant>& 
 	ifstream fid1(FN1);// hydro
 	ifstream fid2(FN2);// wind
 	ifstream fid3(FN3);// solar
+	ifstream fid4(FN4);// offshore wind
 	string line;
 	while (getline(fid1, line))
 	{
@@ -281,7 +282,20 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3, vector<plant>& 
 		Plants[sym2pltType["solar"]].zonal_profile.push_back(hp);
 		Plants[sym2pltType["solar-UPV"]].zonal_profile.push_back(hp);
 	}
+	while (getline(fid4, line))
+	{
+		std::istringstream iss(line);
+		double pp;
+		vector<double> hp;
+		//for (int i = 0; i < 1; i++)// applies to all nodes
+		//{
+			iss >> pp;
+			hp.push_back(pp);
+		//}
 
+		Plants[sym2pltType["wind_offshore"]].zonal_profile.push_back(hp);
+		Plants[sym2pltType["wind-offshore-new"]].zonal_profile.push_back(hp);
+	}
 }
 
 vector<branch> branch::read_branch_data(int nBus, string FN, map<int, vector<int>>& Le)
@@ -626,7 +640,7 @@ void Read_Data()
 
 	vector<plant> Plants = plant::read_new_plant_data("plant_data.txt");
 	plant::read_VRE_profile("profile_hydro_hourly.txt",
-		"profile_wind_hourly.txt", "profile_solar_hourly.txt", Plants);
+		"profile_wind_hourly.txt", "profile_solar_hourly.txt","profile_wind_offshore_hourly.txt", Plants);
 	Plants = plant::read_regional_coeffs("Regional_multiplier_coeff.txt", Plants);
 
 	vector<branch> Branches = branch::read_branch_data(nEnode, "Branches.txt", Le);

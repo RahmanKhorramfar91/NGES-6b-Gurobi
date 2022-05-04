@@ -128,7 +128,7 @@ void Get_EV_vals(GRBModel Model)
 			//if (std::abs(fs[b][t]) > 10e-3)
 			//{
 			//	//std::cout << "flowE[" << n << "][" << t << "][" << Enodes[n].adj_buses[m] << "] = " << fs[n][t][m] << endl;
-			//	fid << "flowE[" << b << "][" << t << "] = " << fs[b][t] << endl;
+			//	cout << "flowE[" << b << "][" << t << "] = " << fs[b][t] << endl;
 			//}
 		}
 	}
@@ -147,6 +147,7 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 	EV::val_prod = new double** [nEnode];
+	double total_yearly_prod = 0;
 	EV::val_total_prod = new double[nPlt]();
 	double flowGE = 0;
 	for (int n = 0; n < nEnode; n++)
@@ -165,6 +166,7 @@ void Get_EV_vals(GRBModel Model)
 					flowGE += s1 * Plants[i].heat_rate;
 				}
 				EV::val_total_prod[i] += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
+				total_yearly_prod += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				EV::val_prod[n][t][i] = EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				//if (prodS[n][t][i] > 10e-3)
 				//{
@@ -174,7 +176,7 @@ void Get_EV_vals(GRBModel Model)
 			}
 		}
 	}
-
+	cout << "\t\t total yearly product: " << total_yearly_prod << endl;
 	EV::val_curtE = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
@@ -239,46 +241,42 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 
-	//double*** eSchS = new double** [nEnode];
-	//for (int n = 0; n < nEnode; n++)
-	//{
-	//	eSchS[n] = new double* [Te.size()];
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > periods2print) { break; }
-
-	//		eSchS[n][t] = new double[nPlt]();
-	//		for (int i = 0; i < neSt; i++)
-	//		{
-	//			eSchS[n][t][i] = EV::eSch[n][t][i]);
-	//			if (eSchS[n][t][i] > 10e-3)
-	//			{
-	//				//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
-	//				fid << "eS_ch[" << n << "][" << t << "][" << i << "] = " << eSchS[n][t][i] << endl;
-	//			}
-	//		}
-	//	}
-	//}
-	//double*** eSdisS = new double** [nEnode];
-	//for (int n = 0; n < nEnode; n++)
-	//{
-	//	eSdisS[n] = new double* [Te.size()];
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > periods2print) { break; }
-
-	//		eSdisS[n][t] = new double[nPlt]();
-	//		for (int i = 0; i < neSt; i++)
-	//		{
-	//			eSdisS[n][t][i] = EV::eSdis[n][t][i]);
-	//			if (eSdisS[n][t][i] > 10e-3)
-	//			{
-	//				//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
-	//				fid << "eS_dis[" << n << "][" << t << "][" << i << "] = " << eSdisS[n][t][i] << endl;
-	//			}
-	//		}
-	//	}
-	//}
+	EV::val_sCh = new double** [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_sCh[n] = new double* [Te.size()];
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_sCh[n][t] = new double[neSt]();
+			for (int i = 0; i < neSt; i++)
+			{
+				EV::val_sCh[n][t][i] = EV::eSch[n][t][i].get(GRB_DoubleAttr_X);
+				//if (eSchS[n][t][i] > 10e-3)
+				//{
+				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
+				//	fid << "eS_ch[" << n << "][" << t << "][" << i << "] = " << eSchS[n][t][i] << endl;
+				//}
+			}
+		}
+	}
+	EV::val_sDis = new double** [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_sDis[n] = new double* [Te.size()];
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_sDis[n][t] = new double[neSt]();
+			for (int i = 0; i < neSt; i++)
+			{
+				EV::val_sDis[n][t][i] = EV::eSdis[n][t][i].get(GRB_DoubleAttr_X);
+				//if (eSchS[n][t][i] > 10e-3)
+				//{
+				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
+				//	fid << "eS_ch[" << n << "][" << t << "][" << i << "] = " << eSchS[n][t][i] << endl;
+				//}
+			}
+		}
+	}
 
 	EV::val_eSlev = new double** [nEnode];
 	for (int n = 0; n < nEnode; n++)
@@ -286,13 +284,25 @@ void Get_EV_vals(GRBModel Model)
 		EV::val_eSlev[n] = new double* [Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
-			EV::val_eSlev[n][t] = new double[nPlt]();
+			EV::val_eSlev[n][t] = new double[neSt]();
 			for (int i = 0; i < neSt; i++)
 			{
 				EV::val_eSlev[n][t][i] = EV::eSlev[n][t][i].get(GRB_DoubleAttr_X);
 			}
 		}
 	}
+
+	//for (int n = 0; n < nEnode; n++)
+	//{
+	//	for (int t = 0; t < Te.size(); t++)
+	//	{
+	//		double s1 = EV::theta[n][t].get(GRB_DoubleAttr_X);
+	//		if (s1>0)
+	//		{
+	//			//cout << "theta[" << n << "][" << t << "] = " << s1 << endl;
+	//		}
+	//	}
+	//}
 	//fid.close();
 #pragma endregion
 }
@@ -586,7 +596,7 @@ void Print_Results(double Elapsed_time, double status)
 	// only for approach 1 or  case 1
 	int is_given = (std::round(Setting::is_xi_given));
 	int em_lim = 100 * (Setting::Emis_lim);
-	int rps = 100*(Setting::RPS);
+	int rps = 100 * (Setting::RPS);
 	int rng = 100 * Setting::RNG_cap;
 	string name = "Rep " + std::to_string(Setting::Num_rep_days) +
 		"-A1" + "-case " + std::to_string(Setting::Case) + "-xi_given " + std::to_string(is_given)
@@ -612,6 +622,34 @@ void Print_Results(double Elapsed_time, double status)
 				fid0 << node_prod << ",";
 			}
 		}
+
+
+		fid0 << "\n\nBattery Charge"<<",";
+
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double all_node_charge = 0;
+			for (int n = 0; n < nEnode; n++)
+			{
+				all_node_charge += EV::val_sCh[n][t][0];
+			}
+			fid0 << all_node_charge << ",";
+		}
+
+
+		fid0 << "\nBattery Discharge"<<",";
+
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double all_node_discharge = 0;
+			for (int n = 0; n < nEnode; n++)
+			{
+				all_node_discharge += EV::val_sDis[n][t][0];
+			}
+			fid0 << all_node_discharge << ",";
+		}
+
+
 		fid0 << "\n\nCurt";
 		for (int t = 0; t < Te.size(); t++)
 		{
@@ -668,8 +706,8 @@ void Print_Results(double Elapsed_time, double status)
 		fid << "Decom_cost" << ",";
 		fid << "Fixed_cost" << ",";
 		fid << "Variable_cost" << ",";
-		fid << "dfo_coal_emis_cost" << ",";
-		fid << "Coal_dfo_fuel_cost" << ",";
+		fid << "dfo_coal_or_NG_emis_cost" << ",";
+		fid << "Coal_dfo_or_NG_fuel_cost" << ",";
 		fid << "Shedding_cost" << ",";
 		fid << "Storage_cost" << ",";
 		fid << "Num_storage" << ",";
@@ -827,8 +865,8 @@ void Print_Results(double Elapsed_time, double status)
 	fid2 << "\n \t Decommissioning Cost: " << EV::val_decom_cost;
 	fid2 << "\n \t Fixed Cost: " << EV::val_fixed_cost;
 	fid2 << "\n \t Variable Cost: " << EV::val_var_cost;
-	fid2 << "\n \t dfo,coal emission cost: " << EV::val_dfo_coal_emis_cost;
-	fid2 << "\n \t (dfo, coal, and nuclear) Fuel Cost: " << EV::val_thermal_fuel_cost;
+	fid2 << "\n \t [NG] emission cost: " << EV::val_dfo_coal_emis_cost;
+	fid2 << "\n \t ([NG and] nuclear) Fuel Cost: " << EV::val_thermal_fuel_cost;
 	fid2 << "\n \t Load Shedding Cost: " << EV::val_shedding_cost;
 	fid2 << "\n \t Storage Cost: " << EV::val_elec_storage_cost;
 	fid2 << "\n \t E Emission: " << CV::val_E_emis << "\n";

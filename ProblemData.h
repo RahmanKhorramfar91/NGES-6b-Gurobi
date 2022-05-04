@@ -69,9 +69,10 @@ struct plant
 	double heat_rate;//MMBTU/MWh
 	int lifetime; // year
 	int decom_cost;
-	double Pmax;  // MW
+	double Pmax;	
 	double Pmin;
 	double rampU;
+	double max_yearly_gen;  // for existing plants MW
 	//double rampD;
 	//int emis_cost; //$/ton
 	// revisit these paramters laters
@@ -80,13 +81,13 @@ struct plant
 	vector<vector<double>> zonal_profile;
 	vector<double> Reg_coeffs_per_state;
 
-	plant(string t, int n, int ise, int f, int v, double emi, double hr, int lt, int dec,
-		double pmax, double pmin, double ru, double cap)
+	plant(string t, int n, int ise,double capex, int f, int v, double emi, double hr, int lt, int dec,
+		double pmax, double pmin, double ru, double max_gen)
 	{
 		this->type = t;
 		this->num = n;
 		this->is_exis = ise;
-		this->capex = cap;
+		this->capex = capex;
 		this->fix_cost = f;
 		this->var_cost = v;
 		this->emis_rate = emi;
@@ -96,6 +97,7 @@ struct plant
 		this->Pmax = pmax;
 		this->Pmin = pmin;
 		this->rampU = ru;
+		this->max_yearly_gen = max_gen;
 		//this->rampD = rd;
 		//this->emis_cost = emic;
 		//this->Umax = max_num;
@@ -103,7 +105,7 @@ struct plant
 
 	static vector<plant> read_new_plant_data(string FileName);
 	static vector<plant> read_regional_coeffs(string FileName, vector<plant>& Plants);
-	static void read_VRE_profile(string FileName1, string FileName2, string FileName3, vector<plant>& Plants);
+	static void read_VRE_profile(string FileName1, string FileName2, string FileName3, string FileName4, vector<plant>& Plants);
 };
 
 struct branch

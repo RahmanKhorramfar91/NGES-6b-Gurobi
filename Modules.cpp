@@ -26,6 +26,8 @@ GRBVar EV::Emit_var;
 GRBVar EV::e_system_cost;
 GRBVar EV::dfo_coal_emis_cost;
 double*** EV::val_prod;
+double*** EV::val_sCh;
+double*** EV::val_sDis;
 double EV::val_est_cost;
 double EV::val_decom_cost;
 double EV::val_fixed_cost;
@@ -174,6 +176,7 @@ void  Populate_EV(GRBModel& Model)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			EV::flowE[b][t] = Model.addVar(-GRB_INFINITY, GRB_INFINITY,0.0, GRB_CONTINUOUS);
+			//EV::flowE[b][t] = Model.addVar(0, GRB_INFINITY, 0.0, GRB_CONTINUOUS);
 		}
 		
 		//Model.addVars()
@@ -564,7 +567,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma endregion
 
 #pragma region Electricity Network Constraints
-	// C1, C2: number of generation units at each node
+	// C1, C2: number of generation units at each node	
 	int existP = 0;
 	for (int n = 0; n < nEnode; n++)
 	{
@@ -588,7 +591,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		}
 	}
 
-	//C3, C4: production limit, ramping
+	//C3, C4: production limit, ramping	
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int t = 0; t < Te.size(); t++)
@@ -607,6 +610,24 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			}
 		}
 	}
+
+	// C 3.5: max yearly generation for existing plants
+	for (int i = 0; i < nPlt; i++)
+	{
+		GRBLinExpr ex0(0);
+		if (Plants[i].is_exis != 1) { continue; }
+		
+		for (int n = 0; n < nEnode; n++)
+		{
+			for (int t = 0; t < Te.size(); t++)
+			{
+				ex0 += time_weight[t] * EV::prod[n][t][i];
+			}
+		}
+		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
+	}
+	
+
 
 
 	// C5, C6: flow limit for electricity
@@ -663,7 +684,15 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				//each Le can contains multiple lines
 				for (int l2 : Le[key1])
 				{
-					exp_trans += EV::flowE[l2][t];
+					if (n>m)
+					{
+						exp_trans -= EV::flowE[l2][t];
+					}
+					else
+					{
+						exp_trans += EV::flowE[l2][t];
+					}
+					
 				}
 			}
 			GRBLinExpr ex_store(0);
@@ -674,7 +703,9 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			double dem = Enodes[n].demand[Te[t]];
 			// ignore trans
 			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
-			Model.addConstr(exp_prod - exp_trans + ex_store + EV::curtE[n][t] == dem);
+			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
+
+			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
 		}
 	}
 	// C8: flow equation
@@ -727,10 +758,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				{
 					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
 				}
-				/*if (Plants[i].type == "hydro" || Plants[i].type == "hydro-new")
+				if (Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new")
 				{
-					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
-				}*/
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][0] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
 			}
 		}
 	}

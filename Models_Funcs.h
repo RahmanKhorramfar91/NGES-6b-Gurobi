@@ -94,6 +94,8 @@ struct EV
 	static GRBVar e_system_cost;
 
 	static double*** val_prod;
+	static double*** val_sCh;
+	static double*** val_sDis;
 	static	double val_est_cost;
 	static	double val_decom_cost;
 	static	double val_fixed_cost;

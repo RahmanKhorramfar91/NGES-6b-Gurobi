@@ -31,13 +31,14 @@ double Setting::PE;
 int main(int argc, char* argv[])
 {
 	auto start = chrono::high_resolution_clock::now();
-	double total_ng_inj_per_year = 4.9E+09; //MMBtu
-	double total_possible_emis_per_year = total_ng_inj_per_year * 0.05831;//=2.86e8
-	double total_ng_yearly_demand = 7.02E+08;// MMBtu
-	double total_yearly_gen_demand = 4.4e8; //MMBtu
-	double PGC = total_ng_yearly_demand + total_yearly_gen_demand;//1.142E+09 possible gas consumption
-	double Poss_Emis = PGC * 0.053; //8.2e7
-	//440834343
+	//double total_ng_inj_per_year = 4.9E+09; //MMBtu
+	//double total_possible_emis_per_year = total_ng_inj_per_year * 0.05831;//=2.86e8
+	double emission_power_plants = 24e6; // 24 tons = 24e9 kg
+	double total_ng_yearly_demand = 5.49E+08;// MMBtu in 2018
+	double total_yearly_gen_demand = emission_power_plants/0.053; //4.52e8 MMBtu
+	double PGC = total_ng_yearly_demand + total_yearly_gen_demand;//1.00E+09 MMBTu possible gas consumption
+	double Poss_Emis = PGC * 0.053; //5.3e7 tons  (previsouly 8.2e7 kg)
+	// 0.053 tons of co2 per MMBTus of NG
 	Setting::PGC = PGC;
 	Setting::PE = Poss_Emis;
 	if (argc > 1)
@@ -56,16 +57,16 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 7;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
-		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = false;
 		Setting::xi_val = 0.1;//0.01,0.05, 0.1,0.15,0.2,;
-		Setting::Emis_lim = 0.25;    // tons
+		Setting::Emis_lim = 0.40;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
 		Setting::RPS = 0.1;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.3; //0.2,0.3,0.4,
-		Setting::cplex_gap = 0.01;  // 2%
+		Setting::cplex_gap = 0.05;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
 
@@ -98,7 +99,7 @@ int main(int argc, char* argv[])
 	int SVL_lifetime = 30; //https://www.hydrogen.energy.gov/pdfs/19001_hydrogen_liquefaction_costs.pdf
 	int pipe_lifespan = 30; // years, https://www.popsci.com/story/environment/oil-gas-pipelines-property/#:~:text=There%20are%20some%203%20million,%2C%20power%20plants%2C%20and%20homes.&text=Those%20pipelines%20have%20an%20average%20lifespan%20of%2050%20years.
 	//double Ng_demand_growth_by_2050 = 0.5; // 50% https://www.eia.gov/todayinenergy/detail.php?id=42342
-	double NG_emis_rate = 0.05831;  // tons of CO2 per MMBtu
+	double NG_emis_rate = 0.05331;  // tons of CO2 per MMBtu
 #pragma endregion
 
 #pragma region Read Data
@@ -123,6 +124,7 @@ int main(int argc, char* argv[])
 	Params::RNG_price = RNG_price;
 	//Params::RPS = RPS;
 	Params::NG_emis_rate = NG_emis_rate;
+
 #pragma endregion
 	int nBr = Params::Branches.size();
 
