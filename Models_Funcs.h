@@ -93,6 +93,9 @@ struct EV
 	static	GRBVar dfo_coal_emis_cost;
 	static GRBVar e_system_cost;
 
+	// Dual variables for power balance constraint to get the locational price of natural gas
+	static GRBConstr** PB;// = new GRBConstr * [Params::Plants.size()];
+
 	static double*** val_prod;
 	static double*** val_sCh;
 	static double*** val_sDis;
@@ -123,6 +126,8 @@ struct EV
 	static double MIP_gap;
 	static double** val_curtE;
 	static double*** val_eSlev;
+
+	static double** val_PB; // power balance equation dual variables
 };
 
 struct GV

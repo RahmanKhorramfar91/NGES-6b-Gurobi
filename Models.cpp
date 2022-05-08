@@ -31,17 +31,17 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
 	// Coupling 1
 	Model.addConstr(CV::xi == ex_xi);
-	Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
+	Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 
 	// Coupling 2
-	Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
+	Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 
 	Model.set(GRB_DoubleParam_TimeLimit, 3600);
 	Model.set(GRB_DoubleParam_MIPGap, 0.01);
 	Model.optimize();
 	double gapp = Model.get(GRB_DoubleAttr_MIPGap);
-	elec_LB =  Model.get(GRB_DoubleAttr_ObjBound);
+	elec_LB = Model.get(GRB_DoubleAttr_ObjBound);
 	/*double gg0 = Model.get(GRB_DoubleAttr_MinBound);
 	double gg2 = Model.get(GRB_DoubleParam_BestBdStop);
 	double gg3 = Model.get(GRB_DoubleAttr_BoundVio);
@@ -66,10 +66,10 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Coupling_Constraints(Model2, ex_xi, ex_NG_emis, ex_E_emis);
 	// Coupling 1
 	Model2.addConstr(CV::xi == ex_xi);
-	Model2.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
+	Model2.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 
 	// Coupling 2
-	Model2.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
+	Model2.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
 	Model2.addConstr(ex_E_emis == CV::E_emis);
 	//Model.addConstr(CV::NG_emis);
 
@@ -132,7 +132,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 
 
 	// Coupling 2
-	double rhs = Setting::Emis_lim*Setting::PE - CV::used_emis_cap;
+	double rhs = Setting::Emis_lim * Setting::PE - CV::used_emis_cap;
 	rhs = std::max(rhs, 0 + 0.001);
 	Model3.addConstr(ex_NG_emis3 <= rhs);
 	Model3.addConstr(ex_NG_emis3 == CV::NG_emis);
@@ -171,15 +171,30 @@ void Electricy_Network_Model()
 	env = new GRBEnv();
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
-	Populate_EV(Model);
+	Populate_EV(Model);	Populate_GV(Model);
 	Elec_Module(Model, exp_Eobj);
 	Model.setObjective(exp_Eobj, GRB_MINIMIZE);
 	CV::xi = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	CV::NG_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	CV::E_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	Model.addConstr(CV::xi == 1);
-	Model.addConstr(CV::E_emis == 1);
-	Model.addConstr(CV::NG_emis == 1);
+	//Model.addConstr(CV::E_emis == 1);
+	//Model.addConstr(CV::NG_emis == 1);
+	// coupling constraints
+	GRBLinExpr ex_xi(0);
+	GRBLinExpr ex_NG_emis(0);
+	GRBLinExpr ex_E_emis(0);
+	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
+
+
+	//if (Setting::Case == 1)
+	{
+		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+	
+
 #pragma region Solve the model
 
 	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
@@ -194,7 +209,12 @@ void Electricy_Network_Model()
 	}
 
 	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
-	double gap = Model.get(GRB_DoubleAttr_MIPGap);
+	double gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		gap = Model.get(GRB_DoubleAttr_MIPGap);
+
+	}
 	auto end = chrono::high_resolution_clock::now();
 	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 	std::cout << "Elapsed time: " << Elapsed << endl;
@@ -241,7 +261,11 @@ void NG_Network_Model()
 	}
 
 	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
-	double gap = Model.get(GRB_DoubleAttr_MIPGap);
+	double gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		gap = Model.get(GRB_DoubleAttr_MIPGap);
+	}
 	auto end = chrono::high_resolution_clock::now();
 	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 	std::cout << "Elapsed time: " << Elapsed << endl;
@@ -284,11 +308,11 @@ double Integrated_Model()
 	//{
 	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
 	//} else if to next 
-	
+
 	if (Setting::is_xi_given)
 	{
 		cout << "\n\n if xi given" << endl;
-		Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
+		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 		Model.addConstr(CV::xi == ex_xi);
 	}
 	else
@@ -304,13 +328,13 @@ double Integrated_Model()
 	}*/
 	if (Setting::Case == 2)
 	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
+		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
 	if (Setting::Case == 3)
 	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim*Setting::PE);
+		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
@@ -350,7 +374,12 @@ double Integrated_Model()
 
 
 	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
-	double gap = Model.get(GRB_DoubleAttr_MIPGap);
+	double gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		double gap = Model.get(GRB_DoubleAttr_MIPGap);
+	}
+
 	auto end = chrono::high_resolution_clock::now();
 	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 	std::cout << "Elapsed time: " << Elapsed << endl;
@@ -361,8 +390,13 @@ double Integrated_Model()
 	std::cout << "\t E emission = " << CV::E_emis.get(GRB_DoubleAttr_X) << endl;
 #pragma endregion
 
-	EV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
-	GV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
+	EV::MIP_gap = 0;
+	GV::MIP_gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		EV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
+		GV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
+	}
 	Get_EV_vals(Model);
 	Get_GV_vals(Model);
 	return obj_val;
@@ -385,10 +419,10 @@ double DESP()
 
 	// Coupling 1
 	Model.addConstr(CV::xi == ex_xi);
-	Model.addConstr(ex_xi == Setting::xi_val*Setting::PGC);
+	Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 
 	// Coupling 2
-	Model.addConstr(ex_E_emis <= Setting::Emis_lim*Setting::PE);
+	Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
 	//Model.addConstr(ex_NG_emis <= 2.6e6);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 	//Model.addConstr(CV::NG_emis);
@@ -447,7 +481,7 @@ double DGSP()
 
 
 	// Coupling 2
-	double rhs = Setting::Emis_lim*Setting::PE - CV::used_emis_cap;
+	double rhs = Setting::Emis_lim * Setting::PE - CV::used_emis_cap;
 	rhs = std::max(rhs, 0 + 0.001);
 	Model.addConstr(ex_NG_emis <= rhs);
 	Model.addConstr(ex_NG_emis == CV::NG_emis);

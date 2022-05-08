@@ -25,6 +25,9 @@ GRBVar EV::elec_storage_cost;
 GRBVar EV::Emit_var;
 GRBVar EV::e_system_cost;
 GRBVar EV::dfo_coal_emis_cost;
+
+GRBConstr** EV::PB;
+
 double*** EV::val_prod;
 double*** EV::val_sCh;
 double*** EV::val_sDis;
@@ -55,6 +58,7 @@ double EV::MIP_gap;
 double** EV::val_YeStr;
 double** EV::val_curtE;
 double*** EV::val_eSlev;
+double** EV::val_PB;
 #pragma endregion
 
 #pragma region NG struct
@@ -151,6 +155,7 @@ void  Populate_EV(GRBModel& Model)
 	EV::YeCD = new GRBVar * [nEnode]; // continuous: charge/discharge capacity
 	EV::YeLev = new GRBVar * [nEnode]; // continuous: charge/discharge level
 	EV::YeStr = new GRBVar * [nEnode]; // (binary) if a storage is established
+	EV::PB = new GRBConstr * [nEnode];
 	if (Setting::relax_int_vars)
 	{
 		EV::Ze = Model.addVars(nBr, GRB_CONTINUOUS);
@@ -175,14 +180,15 @@ void  Populate_EV(GRBModel& Model)
 		EV::flowE[b] = Model.addVars(Te.size());
 		for (int t = 0; t < Te.size(); t++)
 		{
-			EV::flowE[b][t] = Model.addVar(-GRB_INFINITY, GRB_INFINITY,0.0, GRB_CONTINUOUS);
+			EV::flowE[b][t] = Model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS);
 			//EV::flowE[b][t] = Model.addVar(0, GRB_INFINITY, 0.0, GRB_CONTINUOUS);
 		}
-		
+
 		//Model.addVars()
 	}
 	for (int n = 0; n < nEnode; n++)
 	{
+		EV::PB[n] = new GRBConstr[Te.size()];
 		if (Setting::relax_int_vars)
 		{
 			EV::Xest[n] = Model.addVars(nPlt, GRB_CONTINUOUS);
@@ -457,6 +463,30 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			}
 		}
 	}
+	
+	/*GRBLinExpr exp0(0);
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal")
+			{
+				Model.addConstr(EV::Xop[n][i] == 0);
+				continue;
+			}
+			if (!Plants[i].is_exis == 1)
+			{
+				Model.addConstr(EV::Xop[n][i] == 0);
+			}
+			else
+			{
+				Model.addConstr(EV::Xdec[n][i] == 0);
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+		}
+		exp0 += EV::prod[n][0][0];
+	}
+	Model.addConstr(exp0 >= 0);*/
 #pragma endregion
 
 
@@ -500,7 +530,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
 
 				// fuel price to be updated later (dollar per thousand cubic feet=MMBTu)
-				// NG fuel is handle in the NG network
+				// NG fuel is handle in the NG network for case 2 and 3
 				if (Plants[i].type == "dfo")
 				{
 					ex_thermal_fuel += time_weight[t] * dfo_pric * Plants[i].heat_rate * EV::prod[n][t][i];
@@ -514,9 +544,12 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				{
 					ex_thermal_fuel += time_weight[t] * nuclear_price * Plants[i].heat_rate * EV::prod[n][t][i];
 				}
-				else if (Plants[i].type == "ng" && Setting::Case == 1)
+				else if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
 				{
-					ex_thermal_fuel += time_weight[t] * NG_price * Plants[i].heat_rate * EV::prod[n][t][i];
+					if (Setting::Case == 1)
+					{
+						ex_thermal_fuel += time_weight[t] * NG_price * Plants[i].heat_rate * EV::prod[n][t][i];
+					}
 				}
 
 				// emission cost (no longer needed)
@@ -616,7 +649,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	{
 		GRBLinExpr ex0(0);
 		if (Plants[i].is_exis != 1) { continue; }
-		
+
 		for (int n = 0; n < nEnode; n++)
 		{
 			for (int t = 0; t < Te.size(); t++)
@@ -626,7 +659,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		}
 		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
 	}
-	
+
 
 
 
@@ -684,7 +717,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				//each Le can contains multiple lines
 				for (int l2 : Le[key1])
 				{
-					if (n>m)
+					if (n > m)
 					{
 						exp_trans -= EV::flowE[l2][t];
 					}
@@ -692,7 +725,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 					{
 						exp_trans += EV::flowE[l2][t];
 					}
-					
+
 				}
 			}
 			GRBLinExpr ex_store(0);
@@ -701,11 +734,12 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
 			}
 			double dem = Enodes[n].demand[Te[t]];
+			dem = dem;
 			// ignore trans
 			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
 			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
 
-			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
+			EV::PB[n][t] = Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
 		}
 	}
 	// C8: flow equation
@@ -773,6 +807,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			double dem = Enodes[n].demand[Te[t]];
+			dem = dem;
 			Model.addConstr(EV::curtE[n][t] <= dem);
 		}
 	}
@@ -790,6 +825,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				//exp2 += time_weight[t] * Plants[i].emis_rate * EV::prod[n][t][i];
 				if (Plants[i].type == "solar" || Plants[i].type == "wind" ||
+					Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new" ||
 					Plants[i].type == "hydro" || Plants[i].type == "solar-UPV" ||
 					Plants[i].type == "wind-new" || Plants[i].type == "hydro-new")
 				{
@@ -886,6 +922,9 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma endregion
 
 }
+
+
+
 
 void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 {

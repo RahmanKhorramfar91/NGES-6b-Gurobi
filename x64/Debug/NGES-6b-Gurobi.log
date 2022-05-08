@@ -1,3 +1,15 @@
-﻿  Main.cpp
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Main.cpp(129,35): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+﻿  Modules.cpp
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(180,41): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(342,58): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(346,56): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(347,56): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(348,56): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(352,62): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(358,58): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(359,57): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(360,59): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(365,62): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(370,62): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(584,11): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(614,14): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
   NGES-6b-Gurobi.vcxproj -> C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\x64\Debug\NGES-6b-Gurobi.exe

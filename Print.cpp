@@ -18,6 +18,30 @@ void Get_EV_vals(GRBModel Model)
 	vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
 #pragma endregion
+#pragma region Get dual variables
+	EV::val_PB = new double* [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_PB[n] = new double[Te.size()]();
+		double ave_price = 0;
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (!Setting::relax_int_vars)
+			{
+				break;
+			}
+			EV::val_PB[n][t] = EV::PB[n][t].get(GRB_DoubleAttr_Pi);
+			ave_price += EV::val_PB[n][t];
+			/*if (EV::val_PB[n][t]>0)
+			{
+				cout << "PB[" << n << "][" << t << "] = " << EV::val_PB[n][t] << endl;
+			}*/
+		}
+		ave_price = ave_price / Te.size();
+		cout << "NG price at node \t" << n << ": \t" << ave_price << endl;
+	}
+#pragma endregion
+
 
 #pragma region get Electricity Network variables
 	//int periods2print = 20;
@@ -176,6 +200,16 @@ void Get_EV_vals(GRBModel Model)
 			}
 		}
 	}
+	for (int i = 0; i < nPlt; i++)
+	{
+		if (EV::val_total_prod[i] > 10)
+		{
+			cout << Plants[i].type << ": \t " << EV::val_total_prod[i] << endl;
+		}
+	}
+
+
+
 	cout << "\t\t total yearly product: " << total_yearly_prod << endl;
 	EV::val_curtE = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
@@ -624,7 +658,7 @@ void Print_Results(double Elapsed_time, double status)
 		}
 
 
-		fid0 << "\n\nBattery Charge"<<",";
+		fid0 << "\n\nBattery Charge" << ",";
 
 		for (int t = 0; t < Te.size(); t++)
 		{
@@ -637,7 +671,7 @@ void Print_Results(double Elapsed_time, double status)
 		}
 
 
-		fid0 << "\nBattery Discharge"<<",";
+		fid0 << "\nBattery Discharge" << ",";
 
 		for (int t = 0; t < Te.size(); t++)
 		{
