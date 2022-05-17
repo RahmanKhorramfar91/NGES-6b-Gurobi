@@ -275,16 +275,20 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 
-	EV::val_sCh = new double** [nEnode];
+	EV::val_eSdis = new double** [nEnode];
+	EV::val_eSch = new double** [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
-		EV::val_sCh[n] = new double* [Te.size()];
+		EV::val_eSdis[n] = new double* [Te.size()];
+		EV::val_eSch[n] = new double* [Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
-			EV::val_sCh[n][t] = new double[neSt]();
+			EV::val_eSdis[n][t] = new double[neSt]();
+			EV::val_eSch[n][t] = new double[neSt]();
 			for (int i = 0; i < neSt; i++)
 			{
-				EV::val_sCh[n][t][i] = EV::eSch[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_eSdis[n][t][i] = EV::eSdis[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_eSch[n][t][i] = EV::eSch[n][t][i].get(GRB_DoubleAttr_X);
 				//if (eSchS[n][t][i] > 10e-3)
 				//{
 				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
@@ -293,24 +297,24 @@ void Get_EV_vals(GRBModel Model)
 			}
 		}
 	}
-	EV::val_sDis = new double** [nEnode];
-	for (int n = 0; n < nEnode; n++)
-	{
-		EV::val_sDis[n] = new double* [Te.size()];
-		for (int t = 0; t < Te.size(); t++)
-		{
-			EV::val_sDis[n][t] = new double[neSt]();
-			for (int i = 0; i < neSt; i++)
-			{
-				EV::val_sDis[n][t][i] = EV::eSdis[n][t][i].get(GRB_DoubleAttr_X);
-				//if (eSchS[n][t][i] > 10e-3)
-				//{
-				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
-				//	fid << "eS_ch[" << n << "][" << t << "][" << i << "] = " << eSchS[n][t][i] << endl;
-				//}
-			}
-		}
-	}
+	//EV::val_sDis = new double** [nEnode];
+	//for (int n = 0; n < nEnode; n++)
+	//{
+	//	EV::val_sDis[n] = new double* [Te.size()];
+	//	for (int t = 0; t < Te.size(); t++)
+	//	{
+	//		EV::val_sDis[n][t] = new double[neSt]();
+	//		for (int i = 0; i < neSt; i++)
+	//		{
+	//			EV::val_sDis[n][t][i] = EV::eSdis[n][t][i].get(GRB_DoubleAttr_X);
+	//			//if (eSchS[n][t][i] > 10e-3)
+	//			//{
+	//			//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
+	//			//	fid << "eS_ch[" << n << "][" << t << "][" << i << "] = " << eSchS[n][t][i] << endl;
+	//			//}
+	//		}
+	//	}
+	//}
 
 	EV::val_eSlev = new double** [nEnode];
 	for (int n = 0; n < nEnode; n++)
@@ -420,13 +424,15 @@ void Get_GV_vals(GRBModel Model)
 	fid2 << "\t NG Load Shedding Cost: " << GV::gShedd_cost) << endl;
 	fid2 << "\t NG Emission: " << CV::NG_emis) << endl;*/
 	//fid2 << endl;
-	//double** supS = new double* [nGnode];
-	GV::val_supply = new double[nGnode]();
+	GV::val_supply = new double* [nGnode];
+	GV::val_nodal_supply = new double[nGnode]();
 	for (int k = 0; k < nGnode; k++)
 	{
+		GV::val_supply[k] = new double[Tg.size()]();
 		for (int tau = 0; tau < Tg.size(); tau++)
 		{
-			GV::val_supply[k] = RepDaysCount[tau] * GV::supply[k][tau].get(GRB_DoubleAttr_X);
+			GV::val_nodal_supply[k] = RepDaysCount[tau] * GV::supply[k][tau].get(GRB_DoubleAttr_X);
+			GV::val_supply[k][tau] = GV::supply[k][tau].get(GRB_DoubleAttr_X);
 			/*if (s1 > 0)
 			{
 				fid2 << "supply[" << k << "][" << tau << "] = " << s1 << endl;
@@ -471,16 +477,16 @@ void Get_GV_vals(GRBModel Model)
 		}
 	}
 	//fid2 << endl;
-	//GV::val_flowGE = new double** [nGnode];
+	GV::val_flowGE = new double** [nGnode];
 	for (int k = 0; k < nGnode; k++)
 	{
-		//GV::val_flowGE[k] = new double* [Gnodes[k].adjE.size()];
+		GV::val_flowGE[k] = new double* [Gnodes[k].adjE.size()];
 		for (int kp : Gnodes[k].adjE)
 		{
-			//GV::val_flowGE[k][kp] = new double[Tg.size()]();
+			GV::val_flowGE[k][kp] = new double[Tg.size()]();
 			for (int tau = 0; tau < Tg.size(); tau++)
 			{
-				//GV::val_flowGE[k][kp][tau] = GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
+				GV::val_flowGE[k][kp][tau] = GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
 				GV::val_total_flowGE += RepDaysCount[tau] * GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
 				/*if (std::abs(GV::val_flowGE[k][kp][tau]) > 0.1)
 				{
@@ -665,7 +671,7 @@ void Print_Results(double Elapsed_time, double status)
 			double all_node_charge = 0;
 			for (int n = 0; n < nEnode; n++)
 			{
-				all_node_charge += EV::val_sCh[n][t][0];
+				all_node_charge += EV::val_eSch[n][t][0];
 			}
 			fid0 << all_node_charge << ",";
 		}
@@ -678,7 +684,7 @@ void Print_Results(double Elapsed_time, double status)
 			double all_node_discharge = 0;
 			for (int n = 0; n < nEnode; n++)
 			{
-				all_node_discharge += EV::val_sDis[n][t][0];
+				all_node_discharge += EV::val_eSdis[n][t][0];
 			}
 			fid0 << all_node_discharge << ",";
 		}
@@ -860,7 +866,7 @@ void Print_Results(double Elapsed_time, double status)
 	fid << ",";
 	for (int j = 0; j < Params::Gnodes.size(); j++)
 	{
-		fid << "," << GV::val_supply[j];
+		fid << "," << GV::val_nodal_supply[j];
 	}
 	fid << ",";
 	for (int j = 0; j < Params::SVLs.size(); j++)
