@@ -14,6 +14,11 @@
 #include<cmath> // power operator and others
 #include<numeric>
 #include<map>  // To define dictionary data types
+//#ifdef _WIN32
+//#include <Windows.h>
+//#else
+//#include <unistd.h>
+//#endif
 
 using namespace std;
 void Read_rep_days(string name, vector<int>& Rep, vector<int>& RepCount);

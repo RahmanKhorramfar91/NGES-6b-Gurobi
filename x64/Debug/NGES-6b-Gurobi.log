@@ -1,32 +1,38 @@
 ﻿  Benders.cpp
 C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(1,9): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(474,26): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(475,25): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(479,26): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(480,25): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(930,26): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(931,25): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(935,26): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(936,25): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
   Main.cpp
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Main.cpp(129,35): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Main.cpp(32,11): warning C4244: 'initializing': conversion from 'time_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Main.cpp(134,35): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   Models.cpp
   Modules.cpp
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(180,41): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(342,58): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(346,56): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(347,56): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(348,56): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(352,62): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(358,58): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(359,57): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(360,59): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(365,62): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(370,62): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(583,11): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(613,14): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(180,49): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(342,66): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(346,64): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(347,64): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(348,64): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(352,70): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(358,66): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(359,65): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(360,67): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(365,70): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(370,70): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(593,11): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Modules.cpp(623,14): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
   Print.cpp
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(460,40): warning C4244: '+=': conversion from 'double' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(637,15): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(638,13): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(639,10): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(640,10): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(394,40): warning C4244: '+=': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(483,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(484,26): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(485,27): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(486,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(491,36): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(511,15): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(512,13): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(513,10): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Print.cpp(514,10): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
   ProblemData.cpp
 C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(88,44): warning C4244: 'argument': conversion from 'double' to '_Ty', possible loss of data
           with

@@ -5,11 +5,11 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	auto start = chrono::high_resolution_clock::now();
 
 #pragma region Fetch Data
-	vector<enode> Enodes = Params::Enodes;
-	vector<plant> Plants = Params::Plants;
-	int nEnode = (int)Enodes.size();
-	int nPlt = (int)Plants.size();
-	vector<int> Te = Params::Te;
+	//vector<enode> Enodes = Params::Enodes;
+	//vector<plant> Plants = Params::Plants;
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	//vector<int> Te = Params::Te;
 #pragma endregion
 
 	Setting::heuristics1_active = true; Setting::relax_int_vars = true;

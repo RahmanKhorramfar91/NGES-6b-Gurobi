@@ -1,0 +1,18 @@
+﻿  ProblemData.cpp
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(88,44): warning C4244: 'argument': conversion from 'double' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=int
+          ]
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(200,13): warning C4101: 'emis_rate': unreferenced local variable
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(200,10): warning C4101: 'h': unreferenced local variable
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(315,29): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(315,19): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(315,13): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\ProblemData.cpp(317,17): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+  Generating code
+  69 of 1804 functions ( 3.8%) were compiled, the rest were copied from previous compilation.
+    5 functions were new in current compilation
+    29 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  NGES-6b-Gurobi.vcxproj -> C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\x64\Release\NGES-6b-Gurobi.exe
