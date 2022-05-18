@@ -193,3 +193,41 @@ struct CV
 	static double val_E_emis;
 
 };
+
+
+void Subproblem();
+void Primal_subproblem();
+void Elec_Module_Primal_SP(GRBModel& Model, GRBLinExpr& exp_Eobj);
+struct MP
+{
+	static GRBVar Psi;
+};
+
+struct SP
+{
+
+	// from coupling constraints
+	static GRBVar*** rho;
+	static GRBVar tau;
+
+	static GRBVar* alpha;
+	static GRBVar*** beta;
+	static GRBVar*** gamma1;
+	static GRBVar*** gamma2;
+	static GRBVar** delta11;	static GRBVar** delta12;
+	static GRBVar** delta21; 	static GRBVar** delta22;
+
+	static GRBVar** theta;
+
+	static GRBVar** zeta11;
+	static GRBVar** zeta12;
+	static GRBVar** zeta21;
+	static GRBVar** zeta22;
+	static GRBVar** eta1;
+	static GRBVar** eta2;
+	static GRBVar* eta3;
+
+	static GRBVar*** pi;
+	static GRBVar** phi;
+	static GRBVar omega;
+};

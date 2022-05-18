@@ -57,14 +57,14 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 7;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
-		Setting::Case = 1; //1: indep. networks, 2: only E emission, 3:joint planning
+		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = false;
 		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 1;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
-		Setting::RPS = 0.0;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RPS = 0.4;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.4; //0.2,0.3,0.4,
 		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
@@ -182,6 +182,14 @@ int main(int argc, char* argv[])
 		start = chrono::high_resolution_clock::now();
 		Setting::Approach_2_active = ap2;
 	}
+
+	Primal_subproblem();
+
+
+
+
+
+
 	double desp_obj = 0;
 	double dgsp_obj = 0; double xiLB2 = 0; double xiUB2 = 0;
 	if (Setting::Approach_2_active)

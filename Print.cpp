@@ -471,16 +471,16 @@ void Get_GV_vals(GRBModel Model)
 		}
 	}
 	//fid2 << endl;
-	//GV::val_flowGE = new double** [nGnode];
+	GV::val_flowGE = new double** [nGnode];
 	for (int k = 0; k < nGnode; k++)
 	{
-		//GV::val_flowGE[k] = new double* [Gnodes[k].adjE.size()];
+		GV::val_flowGE[k] = new double* [nEnode];
 		for (int kp : Gnodes[k].adjE)
 		{
-			//GV::val_flowGE[k][kp] = new double[Tg.size()]();
+			GV::val_flowGE[k][kp] = new double[Tg.size()]();
 			for (int tau = 0; tau < Tg.size(); tau++)
 			{
-				//GV::val_flowGE[k][kp][tau] = GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
+				GV::val_flowGE[k][kp][tau] = GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
 				GV::val_total_flowGE += RepDaysCount[tau] * GV::flowGE[k][kp][tau].get(GRB_DoubleAttr_X);
 				/*if (std::abs(GV::val_flowGE[k][kp][tau]) > 0.1)
 				{

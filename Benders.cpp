@@ -315,14 +315,10 @@ void Elec_Module_Primal_SP(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			GRBLinExpr ex_store(0);
 			for (int r = 0; r < neSt; r++)
 			{
-				ex_store += EV::val_eSdis[n][t][r] - EV::val_eSch[n][t][r];
+				ex_store += EV::val_sDis[n][t][r] - EV::val_sCh[n][t][r]; //commented
 			}
 			double dem = Params::Enodes[n].demand[Params::Te[t]];
-			//dem = dem/1.896;
-			// ignore trans
-			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
-			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
-
+			
 			EV::PB[n][t] = Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
 		}
 	}
@@ -570,9 +566,10 @@ void Primal_subproblem()
 
 	for (int k = 0; k < nGnode; k++)
 	{
+
 		for (int tau = 0; tau < Params::Tg.size(); tau++)
 		{
-			ex_NG_emis += Params::RepDaysCount[tau] * Params::NG_emis_rate * (GV::val_supply[k][tau]);
+			ex_NG_emis += Params::RepDaysCount[tau] * Params::NG_emis_rate * (GV::val_supply[k]);//commented
 		}
 	}
 	ex_NG_emis -= Params::NG_emis_rate * CV::xi;
@@ -590,7 +587,7 @@ void Primal_subproblem()
 			}
 		}
 	}
-	if (Setting::is_xi_given)
+	/*if (Setting::is_xi_given)
 	{
 		cout << "\n\n if xi given" << endl;
 		ModelB.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
@@ -600,7 +597,7 @@ void Primal_subproblem()
 	{
 		cout << "else xi given" << endl;
 		ModelB.addConstr(CV::xi == ex_xi);
-	}
+	}*/
 
 	/*if (Setting::Case == 1)
 	{
@@ -821,7 +818,7 @@ void Subproblem()
 			double str = 0;;
 			for (int r = 0; r < neSt; r++)
 			{
-				str += EV::val_eSdis[n][t][r] - EV::val_eSch[n][t][r];
+				str += EV::val_sDis[n][t][r] - EV::val_sCh[n][t][r];//commented
 			}
 			ex0 += (dem - str) * SP::theta[n][t];
 			ex0 += pi * SP::eta1[n][t] + pi * SP::eta2[n][t];
@@ -857,7 +854,7 @@ void Subproblem()
 			for (int n : Gnodes[k].adjE)
 			{
 				ex0 += GV::val_flowGE[k][n][tau] * SP::rho[k][n][tau];
-				rem -= (RepDaysCount[tau] * Params::NG_emis_rate * (GV::val_supply[k][tau] - GV::val_flowGE[k][n][tau]));
+				rem -= (RepDaysCount[tau] * Params::NG_emis_rate * (GV::val_supply[k] - GV::val_flowGE[k][n][tau]));//commented
 			}
 		}
 	}

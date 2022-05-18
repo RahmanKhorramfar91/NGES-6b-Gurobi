@@ -1,0 +1,406 @@
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.84475e+08	Emis_lim: 1	RPS: 0	RNG_cap: 0.4
+	 Elapsed time: 5.561
+	 Total cost for both networks:2.18967e+10
+
+ 	 Electricity Network Obj Value: 8.75978e+09
+ 	 Establishment Cost: 4.71485e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.56279e+09
+ 	 Variable Cost: 1.82097e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.71905e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.18442e+07
+ 	 E Emission: 1.73407e+07
+
+
+	 NG Network Obj Value:1.3137e+10
+	 NG import Cost: 5.14243e+09
+	 Pipeline Establishment Cost: 6.73478e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.84475e+08	Emis_lim: 1	RPS: 0	RNG_cap: 0.4
+	 Elapsed time: 4.155
+	 Total cost for both networks:2.18967e+10
+
+ 	 Electricity Network Obj Value: 8.75978e+09
+ 	 Establishment Cost: 4.71485e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.56279e+09
+ 	 Variable Cost: 1.82097e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.71905e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.18442e+07
+ 	 E Emission: 1.73407e+07
+
+
+	 NG Network Obj Value:1.3137e+10
+	 NG import Cost: 5.14243e+09
+	 Pipeline Establishment Cost: 6.73478e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 7	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 7.19174e+08	Emis_lim: 1	RPS: 0	RNG_cap: 0.4
+	 Elapsed time: 30.473
+	 Total cost for both networks:2.29976e+10
+
+ 	 Electricity Network Obj Value: 9.63763e+09
+ 	 Establishment Cost: 5.66439e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.34246e+09
+ 	 Variable Cost: 1.5271e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.99802e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 2.07713e+08
+ 	 E Emission: 1.26676e+07
+
+
+	 NG Network Obj Value:1.336e+10
+	 NG import Cost: 5.36543e+09
+	 Pipeline Establishment Cost: 6.73478e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 3.31686e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.84475e+08	Emis_lim: 1	RPS: 0	RNG_cap: 0.4
+	 Elapsed time: 4.79
+	 Total cost for both networks:2.18967e+10
+
+ 	 Electricity Network Obj Value: 8.75978e+09
+ 	 Establishment Cost: 4.71485e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.56279e+09
+ 	 Variable Cost: 1.82097e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.71905e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.18442e+07
+ 	 E Emission: 1.73407e+07
+
+
+	 NG Network Obj Value:1.3137e+10
+	 NG import Cost: 5.14243e+09
+	 Pipeline Establishment Cost: 6.73478e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 5.223
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.343
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.669
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.541
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.826
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.775
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.738
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.852
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 4.765
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
+
+ ************************************************************************* 
+ Num_Rep_days: 2	 Approach 1: 1	Approach 2: 0	 Case: 3	xi_given: 0	xi_val: 9.69096e+08	Emis_lim: 1	RPS: 0.4	RNG_cap: 0.4
+	 Elapsed time: 5.167
+	 Total cost for both networks:2.19922e+10
+
+ 	 Electricity Network Obj Value: 8.91934e+09
+ 	 Establishment Cost: 4.81566e+09
+ 	 Decommissioning Cost: 0
+ 	 Fixed Cost: 3.61252e+09
+ 	 Variable Cost: 1.85852e+08
+ 	 [NG] emission cost: 0
+ 	 ([NG and] nuclear) Fuel Cost: 1.7019e+08
+ 	 Load Shedding Cost: 0
+ 	 Storage Cost: 8.38333e+07
+ 	 E Emission: 1.70698e+07
+
+
+	 NG Network Obj Value:1.30729e+10
+	 NG import Cost: 5.08091e+09
+	 Pipeline Establishment Cost: 4.15288e+06
+	 Storatge Investment Cost: 0
+	 NG Storage Cost: 7.9878e+09
+	 NG Load NG Shedding Cost: 0
+	 NG Load RNG Shedding Cost: 0
+	 NG Emission: 1.60533e+07
+
+
+
