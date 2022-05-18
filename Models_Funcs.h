@@ -3,7 +3,7 @@
 #include "gurobi_c++.h"
 
 void Electricy_Network_Model();
-double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_gap);
+double feas_sol(double& elec_LB, double& elec_UB,double& ng_obj, double& feas_gap);
 void NG_Network_Model();
 
 
@@ -66,7 +66,7 @@ struct Setting
 	static double PE;
 };
 
-struct EV   // electricity system variables/value
+struct EV
 {
 	static 	GRBVar** Xest; // integer (continues) for plants
 	static	GRBVar** Xdec; // integer (continues) for plants
@@ -97,6 +97,8 @@ struct EV   // electricity system variables/value
 	static GRBConstr** PB;// = new GRBConstr * [Params::Plants.size()];
 
 	static double*** val_prod;
+	static double*** val_sCh;
+	static double*** val_sDis;
 	static	double val_est_cost;
 	static	double val_decom_cost;
 	static	double val_fixed_cost;
@@ -124,13 +126,11 @@ struct EV   // electricity system variables/value
 	static double MIP_gap;
 	static double** val_curtE;
 	static double*** val_eSlev;
-	static double*** val_eSdis;
-	static double*** val_eSch;
 
 	static double** val_PB; // power balance equation dual variables
 };
 
-struct GV // gas system variables/value
+struct GV
 {
 
 	static GRBVar* Xstr;
@@ -164,7 +164,7 @@ struct GV // gas system variables/value
 	static double val_NG_import_cost;
 	static double val_NG_system_cost;
 
-	static double* val_nodal_supply;
+	static double* val_supply;
 	static double val_ng_curt;
 	static double val_rng_curt;
 	static int val_num_est_pipe;
@@ -177,10 +177,9 @@ struct GV // gas system variables/value
 	static double* val_Xstr;
 	static double* val_Zg;
 	static double MIP_gap;
-	static double** val_supply;
 };
 
-struct CV // coupling variables/value
+struct CV
 {
 	static GRBVar xi; // flow from NG to E network (NG consumed by NG-fired plants)
 	static GRBVar NG_emis; // emission from NG network
@@ -193,42 +192,4 @@ struct CV // coupling variables/value
 	static double val_NG_emis;
 	static double val_E_emis;
 
-};
-
-
-void Subproblem();
-void Primal_subproblem();
-void Elec_Module_Primal_SP(GRBModel& Model, GRBLinExpr& exp_Eobj);
-struct MP
-{
-	static GRBVar Psi;
-};
-
-struct SP
-{
-
-	// from coupling constraints
-	static GRBVar*** rho;
-	static GRBVar tau;
-
-	static GRBVar* alpha;
-	static GRBVar*** beta;
-	static GRBVar*** gamma1;
-	static GRBVar*** gamma2;
-	static GRBVar** delta11;	static GRBVar** delta12;
-	static GRBVar** delta21; 	static GRBVar** delta22;
-
-	static GRBVar** theta;
-
-	static GRBVar** zeta11; 
-	static GRBVar** zeta12;
-	static GRBVar** zeta21; 
-	static GRBVar** zeta22;
-	static GRBVar** eta1; 
-	static GRBVar** eta2;
-	static GRBVar* eta3;
-
-	static GRBVar*** pi;
-	static GRBVar** phi;
-	static GRBVar omega;
 };

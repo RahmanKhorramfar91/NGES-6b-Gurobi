@@ -149,7 +149,6 @@
     <ClInclude Include="ProblemData.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Benders.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Models.cpp" />
     <ClCompile Include="Modules.cpp" />
