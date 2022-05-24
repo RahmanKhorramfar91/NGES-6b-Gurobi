@@ -18,11 +18,14 @@ void Get_EV_vals(GRBModel Model)
 	vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
 #pragma endregion
+
 #pragma region Get dual variables
-	EV::val_PB = new double* [nEnode];
+	//EV::dual_val_theta = new double* [nEnode];
+	//EV::dual_val_phi = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
-		EV::val_PB[n] = new double[Te.size()]();
+		//EV::dual_val_theta[n] = new double[Te.size()]();
+		//EV::dual_val_phi[n] = new double[Te.size()]();
 		double ave_price = 0;
 		for (int t = 0; t < Te.size(); t++)
 		{
@@ -30,8 +33,9 @@ void Get_EV_vals(GRBModel Model)
 			{
 				break;
 			}
-			EV::val_PB[n][t] = EV::PB[n][t].get(GRB_DoubleAttr_Pi);
-			ave_price += EV::val_PB[n][t];
+			//EV::dual_val_theta[n][t] = EV::d_theta[n][t].get(GRB_DoubleAttr_Pi);
+			//EV::dual_val_phi[n][t] = EV::d_phi[n][t].get(GRB_DoubleAttr_Pi);
+			ave_price += SP::dual_val_theta[n][t];
 			/*if (EV::val_PB[n][t]>0)
 			{
 				cout << "PB[" << n << "][" << t << "] = " << EV::val_PB[n][t] << endl;
@@ -108,9 +112,9 @@ void Get_EV_vals(GRBModel Model)
 		{
 			EV::val_num_est[i] += EV::Xest[n][i].get(GRB_DoubleAttr_X);
 			EV::val_num_decom[i] += EV::Xdec[n][i].get(GRB_DoubleAttr_X);
-			EV::val_Xop[n][i] = EV::Xop[n][i].get(GRB_DoubleAttr_X);
-			EV::val_Xest[n][i] = EV::Xest[n][i].get(GRB_DoubleAttr_X);
-			EV::val_Xdec[n][i] = EV::Xdec[n][i].get(GRB_DoubleAttr_X);
+			EV::val_Xop[n][i] = std::round(EV::Xop[n][i].get(GRB_DoubleAttr_X));
+			EV::val_Xest[n][i] = std::round(EV::Xest[n][i].get(GRB_DoubleAttr_X));
+			EV::val_Xdec[n][i] = std::round(EV::Xdec[n][i].get(GRB_DoubleAttr_X));
 			//if (EV::val_Xest[n][i] > 0)
 			//{
 			//	cout << "X[" << n << "][" << i << "] = " << EV::val_Xest[n][i] << endl;
@@ -161,7 +165,7 @@ void Get_EV_vals(GRBModel Model)
 	for (int b = 0; b < nBr; b++)
 	{
 		EV::val_num_est_trans += EV::Ze[b].get(GRB_DoubleAttr_X);
-		EV::val_Ze[b] = EV::Ze[b].get(GRB_DoubleAttr_X);
+		EV::val_Ze[b] = std::round(EV::Ze[b].get(GRB_DoubleAttr_X));
 
 		//if (EV::val_Ze[b] > 10e-3)
 		//{
@@ -209,11 +213,11 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 
-
 	cout << "\t\t total yearly product: " << total_yearly_prod << endl;
 	EV::val_curtE = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
+		//cout << EV::Xop[n][12].get(GRB_DoubleAttr_X)<<endl; // wind offshore new: num of operating units
 		EV::val_curtE[n] = new double[Te.size()]();
 		for (int t = 0; t < Te.size(); t++)
 		{
@@ -275,16 +279,16 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 
-	EV::val_sCh = new double** [nEnode];
+	EV::val_eSch = new double** [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
-		EV::val_sCh[n] = new double* [Te.size()];
+		EV::val_eSch[n] = new double* [Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
-			EV::val_sCh[n][t] = new double[neSt]();
+			EV::val_eSch[n][t] = new double[neSt]();
 			for (int i = 0; i < neSt; i++)
 			{
-				EV::val_sCh[n][t][i] = EV::eSch[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_eSch[n][t][i] = EV::eSch[n][t][i].get(GRB_DoubleAttr_X);
 				//if (eSchS[n][t][i] > 10e-3)
 				//{
 				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
@@ -293,16 +297,16 @@ void Get_EV_vals(GRBModel Model)
 			}
 		}
 	}
-	EV::val_sDis = new double** [nEnode];
+	EV::val_eSdis = new double** [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
-		EV::val_sDis[n] = new double* [Te.size()];
+		EV::val_eSdis[n] = new double* [Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
-			EV::val_sDis[n][t] = new double[neSt]();
+			EV::val_eSdis[n][t] = new double[neSt]();
 			for (int i = 0; i < neSt; i++)
 			{
-				EV::val_sDis[n][t][i] = EV::eSdis[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_eSdis[n][t][i] = EV::eSdis[n][t][i].get(GRB_DoubleAttr_X);
 				//if (eSchS[n][t][i] > 10e-3)
 				//{
 				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
@@ -346,13 +350,6 @@ void Get_GV_vals(GRBModel Model)
 {
 
 #pragma region Fetch Data
-
-	// set of possible existing plant types
-//	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
-//{"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7} };
-//	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
-//{2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };
-
 	vector<gnode> Gnodes = Params::Gnodes;
 	vector<pipe> PipeLines = Params::PipeLines;
 	vector<enode> Enodes = Params::Enodes;
@@ -420,13 +417,15 @@ void Get_GV_vals(GRBModel Model)
 	fid2 << "\t NG Load Shedding Cost: " << GV::gShedd_cost) << endl;
 	fid2 << "\t NG Emission: " << CV::NG_emis) << endl;*/
 	//fid2 << endl;
-	//double** supS = new double* [nGnode];
-	GV::val_supply = new double[nGnode]();
+	GV::val_supply = new double* [nGnode];
+	GV::val_total_nodal_supply = new double[nGnode]();
 	for (int k = 0; k < nGnode; k++)
 	{
+		GV::val_supply[k] = new double[Tg.size()]();
 		for (int tau = 0; tau < Tg.size(); tau++)
 		{
-			GV::val_supply[k] = RepDaysCount[tau] * GV::supply[k][tau].get(GRB_DoubleAttr_X);
+			GV::val_total_nodal_supply[k] = RepDaysCount[tau] * GV::supply[k][tau].get(GRB_DoubleAttr_X);
+			GV::val_supply[k][tau] = GV::supply[k][tau].get(GRB_DoubleAttr_X);
 			/*if (s1 > 0)
 			{
 				fid2 << "supply[" << k << "][" << tau << "] = " << s1 << endl;
@@ -665,7 +664,7 @@ void Print_Results(double Elapsed_time, double status)
 			double all_node_charge = 0;
 			for (int n = 0; n < nEnode; n++)
 			{
-				all_node_charge += EV::val_sCh[n][t][0];
+				all_node_charge += EV::val_eSch[n][t][0];
 			}
 			fid0 << all_node_charge << ",";
 		}
@@ -678,7 +677,7 @@ void Print_Results(double Elapsed_time, double status)
 			double all_node_discharge = 0;
 			for (int n = 0; n < nEnode; n++)
 			{
-				all_node_discharge += EV::val_sDis[n][t][0];
+				all_node_discharge += EV::val_eSdis[n][t][0];
 			}
 			fid0 << all_node_discharge << ",";
 		}
@@ -860,7 +859,7 @@ void Print_Results(double Elapsed_time, double status)
 	fid << ",";
 	for (int j = 0; j < Params::Gnodes.size(); j++)
 	{
-		fid << "," << GV::val_supply[j];
+		fid << "," << GV::val_total_nodal_supply[j];
 	}
 	fid << ",";
 	for (int j = 0; j < Params::SVLs.size(); j++)

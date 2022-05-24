@@ -22,7 +22,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	env = new GRBEnv();
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
-	Populate_EV(Model); Populate_GV(Model);
+	Populate_EV_SP(Model); Populate_GV(Model);
 	Elec_Module(Model, exp_Eobj);
 	Model.setObjective(exp_Eobj, GRB_MINIMIZE);
 	GRBLinExpr ex_xi(0);
@@ -57,7 +57,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	env2 = new GRBEnv();
 	GRBModel Model2 = GRBModel(env2);
 	exp_Eobj.clear();
-	Populate_EV(Model2); Populate_GV(Model2);
+	Populate_EV_SP(Model2); Populate_GV(Model2);
 	Elec_Module(Model2, exp_Eobj);
 	Model2.setObjective(exp_Eobj, GRB_MINIMIZE);
 	ex_xi.clear();
@@ -118,7 +118,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	GRBModel Model3 = GRBModel(env3);
 	GRBLinExpr exp_NGobj3(0);
 	Populate_GV(Model3);
-	Populate_EV(Model3);
+	Populate_EV_SP(Model3);
 	NG_Module(Model3, exp_NGobj3);
 
 	// coupling constraints
@@ -171,7 +171,7 @@ void Electricy_Network_Model()
 	env = new GRBEnv();
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
-	Populate_EV(Model);	Populate_GV(Model);
+	Populate_EV_SP(Model);	Populate_GV(Model);
 	Elec_Module(Model, exp_Eobj);
 	Model.setObjective(exp_Eobj, GRB_MINIMIZE);
 	CV::xi = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
@@ -278,7 +278,7 @@ void NG_Network_Model()
 double Integrated_Model()
 {
 	auto start = chrono::high_resolution_clock::now();
-
+	 
 #pragma region apply heuristic to generate a warm-start solution
 	double elec_UB = 0;
 	if (Setting::warm_start_active)
@@ -292,7 +292,7 @@ double Integrated_Model()
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_NGobj(0);
 	GRBLinExpr exp_Eobj(0);
-	Populate_EV(Model);
+	Populate_EV_SP(Model);
 	Elec_Module(Model, exp_Eobj);
 
 	Populate_GV(Model);
@@ -410,7 +410,7 @@ double DESP()
 	env = new GRBEnv();
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
-	Populate_EV(Model); Populate_GV(Model);
+	Populate_EV_SP(Model); Populate_GV(Model);
 	Elec_Module(Model, exp_Eobj);
 
 	// coupling constraints
@@ -467,7 +467,7 @@ double DGSP()
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_NGobj(0);
 	Populate_GV(Model);
-	Populate_EV(Model);
+	Populate_EV_SP(Model);
 	NG_Module(Model, exp_NGobj);
 
 	// coupling constraints

@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
 	//double total_possible_emis_per_year = total_ng_inj_per_year * 0.05831;//=2.86e8
 	double emission_power_plants = 24e6; // 24 tons = 24e9 kg
 	double total_ng_yearly_demand = 5.49E+08;// MMBtu in 2018
-	double total_yearly_gen_demand = emission_power_plants/0.053; //4.52e8 MMBtu
+	double total_yearly_gen_demand = emission_power_plants / 0.053; //4.52e8 MMBtu
 	double PGC = total_ng_yearly_demand + total_yearly_gen_demand;//1.00E+09 MMBTu possible gas consumption
 	double Poss_Emis = PGC * 0.053; //5.3e7 tons  (previsouly 8.2e7 kg)
 	// 0.053 tons of co2 per MMBTus of NG
@@ -63,9 +63,9 @@ int main(int argc, char* argv[])
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = false;
 		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
-		Setting::Emis_lim = 1;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
-		Setting::RPS = 0.4;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.4; //0.2,0.3,0.4,
+		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
+		Setting::RPS = 0.0;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RNG_cap = 0.2; //0.2,0.3,0.4,
 		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 	//Setting::heuristics1_active = true;
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
-	Setting::print_all_vars = true;
+	Setting::print_all_vars = false;
 #pragma endregion
 
 #pragma region  Other parameters   
@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
 	}
 
 	Primal_subproblem();
-
+	//Subproblem();
 
 
 

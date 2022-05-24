@@ -14,7 +14,7 @@ GRBVar*** EV::eSch;// power charge to storage
 GRBVar*** EV::eSdis;// power discharge to storage
 GRBVar*** EV::eSlev;// power level at storage
 GRBVar** EV::Xop; // integer (continues)
-GRBVar** EV::flowE; // unlike the paper, flowE subscripts are "ntm" here
+GRBVar** EV::flowE;
 GRBVar EV::est_cost;
 GRBVar EV::decom_cost;
 GRBVar EV::fixed_cost;
@@ -26,11 +26,8 @@ GRBVar EV::Emit_var;
 GRBVar EV::e_system_cost;
 GRBVar EV::dfo_coal_emis_cost;
 
-GRBConstr** EV::PB;
 
 double*** EV::val_prod;
-double*** EV::val_sCh;
-double*** EV::val_sDis;
 double EV::val_est_cost;
 double EV::val_decom_cost;
 double EV::val_fixed_cost;
@@ -58,7 +55,12 @@ double EV::MIP_gap;
 double** EV::val_YeStr;
 double** EV::val_curtE;
 double*** EV::val_eSlev;
-double** EV::val_PB;
+double*** EV::val_eSdis;
+double*** EV::val_eSch;
+
+
+
+
 #pragma endregion
 
 #pragma region NG struct
@@ -90,7 +92,7 @@ double GV::val_rngShedd_cost;
 double GV::val_gStrFOM_cost;
 double GV::val_NG_import_cost;
 double GV::val_NG_system_cost;
-double* GV::val_supply;
+double* GV::val_total_nodal_supply;
 double GV::val_ng_curt;
 double GV::val_rng_curt;
 int GV::val_num_est_pipe;
@@ -103,8 +105,76 @@ double* GV::val_vapor;
 double* GV::val_Xstr;
 double* GV::val_Zg;
 double GV::MIP_gap;
+double** GV::val_supply;
 #pragma endregion
 
+#pragma region SP Struct
+double SP::SP_Primal_obj;
+double SP::SP_Dual_obj;
+GRBConstr* SP::d_alpha;
+GRBConstr*** SP::d_beta;
+GRBConstr*** SP::d_gamma1;
+GRBConstr*** SP::d_gamma2;
+GRBConstr** SP::d_delta11;
+GRBConstr** SP::d_delta12;
+GRBConstr** SP::d_delta21;
+GRBConstr** SP::d_delta22;
+GRBConstr** SP::d_theta;
+GRBConstr** SP::d_zeta11;
+GRBConstr** SP::d_zeta12;
+GRBConstr** SP::d_zeta21;
+GRBConstr** SP::d_zeta22;
+GRBConstr** SP::d_eta1;
+GRBConstr** SP::d_eta2;
+GRBConstr*** SP::d_pi;
+GRBConstr** SP::d_phi;
+GRBConstr SP::d_omega;
+GRBConstr*** SP::d_rho; 
+GRBConstr SP::d_tau;
+
+double* SP::dual_val_alpha;
+double*** SP::dual_val_beta;
+double*** SP::dual_val_gamma1;
+double*** SP::dual_val_gamma2;
+double** SP::dual_val_delta11;
+double** SP::dual_val_delta12;
+double** SP::dual_val_delta21;
+double** SP::dual_val_delta22;
+double** SP::dual_val_theta;
+double** SP::dual_val_zeta11;
+double** SP::dual_val_zeta12;
+double** SP::dual_val_zeta21;
+double** SP::dual_val_zeta22;
+double** SP::dual_val_eta1;
+double** SP::dual_val_eta2;
+double*** SP::dual_val_pi;
+double** SP::dual_val_phi;
+double SP::dual_val_omega;
+double*** SP::dual_val_rho;
+double SP::dual_val_tau;
+
+GRBVar*** SP::rho;
+GRBVar SP::tau;
+GRBVar* SP::alpha;
+GRBVar*** SP::beta;
+GRBVar*** SP::gamma1;
+GRBVar*** SP::gamma2;
+GRBVar** SP::delta11;
+GRBVar** SP::delta12;
+GRBVar** SP::delta21;
+GRBVar** SP::delta22;
+GRBVar** SP::theta;
+GRBVar** SP::zeta11;
+GRBVar** SP::zeta12;
+GRBVar** SP::zeta21;
+GRBVar** SP::zeta22;
+GRBVar** SP::eta1;
+GRBVar** SP::eta2;
+GRBVar* SP::eta3;
+GRBVar*** SP::pi;
+GRBVar** SP::phi;
+GRBVar SP::omega;
+#pragma endregion
 
 #pragma region Coupling struct (CV)
 GRBVar CV::xi;
@@ -116,7 +186,8 @@ double CV::val_NG_emis;
 double CV::val_E_emis;
 #pragma endregion
 
-void  Populate_EV(GRBModel& Model)
+
+void  Populate_EV_SP(GRBModel& Model)
 {
 
 #pragma region Fetch Data
@@ -126,15 +197,15 @@ void  Populate_EV(GRBModel& Model)
 	vector<plant> Plants = Params::Plants;
 	vector<eStore> Estorage = Params::Estorage;
 	vector<branch> Branches = Params::Branches;
-	int nEnode = (int)Enodes.size();
-	int nPlt = (int)Plants.size();
-	int nBr = (int)Branches.size();
-	int neSt = (int)Estorage.size();
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
 	vector<int> Tg = Params::Tg;
 	vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
 	const double pi = 3.1415926535897;
-	int nGnode = (int)Gnodes.size();
+	int nGnode = (int)Params::Gnodes.size();
 	double WACC = Params::WACC;
 	int trans_unit_cost = Params::trans_unit_cost;
 	int trans_line_lifespan = Params::trans_line_lifespan;
@@ -149,13 +220,31 @@ void  Populate_EV(GRBModel& Model)
 	vector<int> RepDaysCount = Params::RepDaysCount;
 #pragma endregion
 
-#pragma region Electricity network DVs
+#pragma region Electricity network DVs+ SP duals
 	EV::Xest = new GRBVar * [nEnode]; // integer (continues) for plants
 	EV::Xdec = new GRBVar * [nEnode]; // integer (continues) for plants
 	EV::YeCD = new GRBVar * [nEnode]; // continuous: charge/discharge capacity
 	EV::YeLev = new GRBVar * [nEnode]; // continuous: charge/discharge level
 	EV::YeStr = new GRBVar * [nEnode]; // (binary) if a storage is established
-	EV::PB = new GRBConstr * [nEnode];
+	SP::d_alpha = new GRBConstr[nPlt];
+	SP::d_beta = new GRBConstr * *[nEnode];
+	SP::d_gamma1 = new GRBConstr * *[nEnode];
+	SP::d_gamma2 = new GRBConstr * *[nEnode];
+	SP::d_delta11 = new GRBConstr * [nBr];
+	SP::d_delta12 = new GRBConstr * [nBr];
+	SP::d_delta21 = new GRBConstr * [nBr];
+	SP::d_delta22 = new GRBConstr * [nBr];
+	SP::d_theta = new GRBConstr * [nEnode];
+	SP::d_zeta11 = new GRBConstr * [nBr];
+	SP::d_zeta12 = new GRBConstr * [nBr];
+	SP::d_zeta21 = new GRBConstr * [nBr];
+	SP::d_zeta22 = new GRBConstr * [nBr];
+	SP::d_eta1 = new GRBConstr * [nEnode];
+	SP::d_eta2 = new GRBConstr * [nEnode];
+	SP::d_pi = new GRBConstr * *[nEnode];
+	SP::d_phi = new GRBConstr * [nEnode];
+
+
 	if (Setting::relax_int_vars)
 	{
 		EV::Ze = Model.addVars(nBr, GRB_CONTINUOUS);
@@ -174,21 +263,33 @@ void  Populate_EV(GRBModel& Model)
 	EV::eSlev = new GRBVar * *[nEnode];// power level at storage
 
 	EV::Xop = new GRBVar * [nEnode];// integer (continues)
-	EV::flowE = new GRBVar * [nBr]; // unlike the paper, flowE subscripts are "ntm" here
+	EV::flowE = new GRBVar * [nBr];
 	for (int b = 0; b < nBr; b++)
 	{
 		EV::flowE[b] = Model.addVars(Te.size());
+		SP::d_delta11[b] = new GRBConstr[Te.size()];
+		SP::d_delta12[b] = new GRBConstr[Te.size()];
+		SP::d_delta21[b] = new GRBConstr[Te.size()];
+		SP::d_delta22[b] = new GRBConstr[Te.size()];
+		SP::d_zeta11[b] = new GRBConstr[Te.size()];
+		SP::d_zeta12[b] = new GRBConstr[Te.size()];
+		SP::d_zeta21[b] = new GRBConstr[Te.size()];
+		SP::d_zeta22[b] = new GRBConstr[Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
 			EV::flowE[b][t] = Model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS);
-			//EV::flowE[b][t] = Model.addVar(0, GRB_INFINITY, 0.0, GRB_CONTINUOUS);
 		}
-
-		//Model.addVars()
 	}
 	for (int n = 0; n < nEnode; n++)
 	{
-		EV::PB[n] = new GRBConstr[Te.size()];
+		SP::d_theta[n] = new GRBConstr[Te.size()];
+		SP::d_phi[n] = new GRBConstr[Te.size()];
+		SP::d_beta[n] = new GRBConstr * [Te.size()];
+		SP::d_gamma1[n] = new GRBConstr * [Te.size()];
+		SP::d_gamma2[n] = new GRBConstr * [Te.size()];
+		SP::d_eta1[n] = new GRBConstr[Te.size()];
+		SP::d_eta2[n] = new GRBConstr[Te.size()];
+		SP::d_pi[n] = new GRBConstr * [Te.size()];
 		if (Setting::relax_int_vars)
 		{
 			EV::Xest[n] = Model.addVars(nPlt, GRB_CONTINUOUS);
@@ -219,14 +320,13 @@ void  Populate_EV(GRBModel& Model)
 
 
 		//Ze[n] = GRBVarArray(env, Enodes[n].adj_buses.size(), 0, IloInfinity, ILOBOOL);
-		EV::theta[n] = Model.addVars((int)Te.size(), GRB_CONTINUOUS);
+		EV::theta[n] = Model.addVars((int)Te.size());
 		EV::curtE[n] = Model.addVars((int)Te.size(), GRB_CONTINUOUS);
 		EV::YeCD[n] = Model.addVars(neSt, GRB_CONTINUOUS);
 		EV::YeLev[n] = Model.addVars(neSt, GRB_CONTINUOUS);
 		if (Setting::relax_int_vars)
 		{
 			EV::YeStr[n] = Model.addVars(neSt, GRB_CONTINUOUS);
-
 		}
 		else
 		{
@@ -240,10 +340,27 @@ void  Populate_EV(GRBModel& Model)
 
 		for (int t = 0; t < Te.size(); t++)
 		{
-			EV::prod[n][t] = Model.addVars(nPlt, GRB_CONTINUOUS);
-			EV::eSch[n][t] = Model.addVars(neSt, GRB_CONTINUOUS);
-			EV::eSdis[n][t] = Model.addVars(neSt, GRB_CONTINUOUS);
-			EV::eSlev[n][t] = Model.addVars(neSt, GRB_CONTINUOUS);
+			SP::d_beta[n][t] = new GRBConstr[nPlt];
+			SP::d_gamma1[n][t] = new GRBConstr[nPlt];
+			SP::d_gamma2[n][t] = new GRBConstr[nPlt];
+			SP::d_pi[n][t] = new GRBConstr[nPlt];
+			EV::theta[n][t] = Model.addVar(-GRB_INFINITY, GRB_INFINITY, 0, GRB_CONTINUOUS);
+			EV::prod[n][t] = Model.addVars(nPlt);
+			EV::eSch[n][t] = Model.addVars(neSt);
+			EV::eSdis[n][t] = Model.addVars(neSt);
+			EV::eSlev[n][t] = Model.addVars(neSt);
+
+			for (int i = 0; i < nPlt; i++)
+			{
+				EV::prod[n][t][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+			}
+			for (int r = 0; r < neSt; r++)
+			{
+				EV::eSch[n][t][r] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+				EV::eSdis[n][t][r] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+				EV::eSlev[n][t][r] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+			}
+
 		}
 	}
 	EV::est_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
@@ -257,6 +374,16 @@ void  Populate_EV(GRBModel& Model)
 	EV::Emit_var = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::e_system_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 #pragma endregion
+	SP::d_rho = new GRBConstr * *[nGnode];
+	// define SP::d_rho
+	for (int k = 0; k < nGnode; k++)
+	{
+		SP::d_rho[k] = new GRBConstr * [nEnode];
+		for (int n : Gnodes[k].adjE)
+		{
+			SP::d_rho[k][n] = new GRBConstr[Tg.size()];
+		}
+	}
 }
 
 void Populate_GV(GRBModel& Model)
@@ -270,19 +397,19 @@ void Populate_GV(GRBModel& Model)
 	vector<plant> Plants = Params::Plants;
 	vector<eStore> Estorage = Params::Estorage;
 	vector<exist_gSVL> Exist_SVL = Params::Exist_SVL;
-	int nSVL = (int)Exist_SVL.size();
+	int nSVL = (int)Params::Exist_SVL.size();
 	vector<SVL> SVLs = Params::SVLs;
 	vector<branch> Branches = Params::Branches;
-	int nEnode = (int)Enodes.size();
-	int nPlt = (int)Plants.size();
-	int nBr = (int)Branches.size();
-	int neSt = (int)Estorage.size();
-	int nPipe = (int)PipeLines.size();
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
+	int nPipe = (int)Params::PipeLines.size();
 	vector<int> Tg = Params::Tg;
-	//vector<int> Te = Params::Te;
+	vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
 	double pi = 3.1415926535897;
-	int nGnode = (int)Gnodes.size();
+	int nGnode = (int)Params::Gnodes.size();
 	double WACC = Params::WACC;
 	int trans_unit_cost = Params::trans_unit_cost;
 	int trans_line_lifespan = Params::trans_line_lifespan;
@@ -372,6 +499,8 @@ void Populate_GV(GRBModel& Model)
 	}
 #pragma endregion
 
+
+	
 }
 
 
@@ -392,15 +521,15 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	vector<plant> Plants = Params::Plants;
 	vector<eStore> Estorage = Params::Estorage;
 	vector<branch> Branches = Params::Branches;
-	int nEnode = (int)Enodes.size();
-	int nPlt = (int)Plants.size();
-	int nBr = (int)Branches.size();
-	int neSt = (int)Estorage.size();
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
 	vector<int> Tg = Params::Tg;
 	vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
 	double pi = 3.141592;
-	int nGnode = (int)Gnodes.size();
+	int nGnode = (int)Params::Gnodes.size();
 	double WACC = Params::WACC;
 	int trans_unit_cost = Params::trans_unit_cost;
 	int trans_line_lifespan = Params::trans_line_lifespan;
@@ -423,14 +552,45 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	// 2) new types cannot be decommissioned
 	// 3) no new wind-offshore on some location (not yet implemented)
 	// 4) no new nuclear
-	// 5) turn off df0/coal
+	// 5) turn off df0/coal/wind-offshore. The data is not correct on wind-offshore, there is no existing wind-offshore in the region
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
+			/*if (Plants[i].type!="hydro" )
+			{
+				Model.addConstr(EV::Xop[n][i] == 0); Model.addConstr(EV::Xest[n][i] == 0);
+			}*/
+
+
+			//if (Plants[i].type == "solar" || Plants[i].type == "solar-UPV")
+			//{
+			//	Model.addConstr(EV::Xop[n][i] == 0);
+			//}
+			//
+			//if (Plants[i].type == "wind" || Plants[i].type == "wind-new")
+			//{
+			//	Model.addConstr(EV::Xop[n][i] == 0);
+			//}
+			//if (Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new")
+			//{
+			//	Model.addConstr(EV::Xop[n][i] == 0);
+			//}
+			//if (Plants[i].type == "ng"|| Plants[i].type == "nuclear")
+			//{
+			//	Model.addConstr(EV::Xop[n][i] == 0);
+			//}
+			//if (Plants[i].type == "hydro")
+			//{
+			//	Model.addConstr(EV::Xop[n][i] == 0);
+			//}
+
+
+
 			//// do not allow establishment off-shore wind and hydro plants
 			//Model.addConstr(EV::Xdec[n][5] == 0);
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal")
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore")
 			{
 				Model.addConstr(EV::Xop[n][i] == 0);
 			}
@@ -439,6 +599,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::Xest[n][i] == 0);
 			}
+
 			if (Plants[i].type == "wind-offshore-new")
 			{
 				if (n == 0 || n == 2)// except for Massachusetts and Connecticus
@@ -461,15 +622,16 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::Xdec[n][i] == 0);
 			}
+
+
 		}
 	}
-	
-	/*GRBLinExpr exp0(0);
-	for (int n = 0; n < nEnode; n++)
+
+	/*for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal")
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" || Plants[i].type == "wind_offshore")
 			{
 				Model.addConstr(EV::Xop[n][i] == 0);
 				continue;
@@ -484,9 +646,21 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				Model.addConstr(EV::Xest[n][i] == 0);
 			}
 		}
-		exp0 += EV::prod[n][0][0];
-	}
-	Model.addConstr(exp0 >= 0);*/
+	}*/
+
+
+	// just to verify dual problem, set ze=0 
+	//for (int b = 0; b < nBr; b++)
+	//{
+	//	//if (Branches[b].is_exist == 0)
+	//	{
+	//		Model.addConstr(EV::Ze[b] == 0);
+	//		for (int t = 0; t < Te.size(); t++)
+	//		{
+	//			Model.addConstr(EV::flowE[b][t] == 0);
+	//		}
+	//	}
+	//}
 #pragma endregion
 
 
@@ -507,7 +681,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int i = 0; i < nPlt; i++)
 		{
 			// Investment/decommission cost of plants
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore") {
+				continue;
+			}
 			double s1 = (double)std::pow(1.0 / (1 + WACC), Plants[i].lifetime);
 			double capco = WACC / (1 - s1) * Plants[i].Reg_coeffs_per_state[n];
 			ex_est += capco * Plants[i].capex * EV::Xest[n][i];
@@ -517,7 +694,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		// fixed cost (annual, so no iteration over time)
 		for (int i = 0; i < nPlt; i++)
 		{
-			if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore") {
+				continue;
+			}
 			ex_fix += Plants[i].fix_cost * EV::Xop[n][i];
 		}
 		// var+fuel costs of plants
@@ -525,22 +705,25 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
-				if (Plants[i].type == "dfo" || Plants[i].type == "coal") { continue; }
+				if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+					Plants[i].type == "wind_offshore") {
+					continue;
+				}
 				// var cost
 				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
 
 				// fuel price to be updated later (dollar per thousand cubic feet=MMBTu)
 				// NG fuel is handle in the NG network for case 2 and 3
-				if (Plants[i].type == "dfo")
-				{
-					ex_thermal_fuel += time_weight[t] * dfo_pric * Plants[i].heat_rate * EV::prod[n][t][i];
+				//if (Plants[i].type == "dfo")
+				//{
+				//	ex_thermal_fuel += time_weight[t] * dfo_pric * Plants[i].heat_rate * EV::prod[n][t][i];
 
-				}
-				else if (Plants[i].type == "coal")
-				{
-					ex_thermal_fuel += time_weight[t] * coal_price * Plants[i].heat_rate * EV::prod[n][t][i];
-				}
-				else if (Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				//}
+				//else if (Plants[i].type == "coal")
+				//{
+				//	ex_thermal_fuel += time_weight[t] * coal_price * Plants[i].heat_rate * EV::prod[n][t][i];
+				//}
+				 if (Plants[i].type == "nuclear"|| Plants[i].type == "nuclear-new")
 				{
 					ex_thermal_fuel += time_weight[t] * nuclear_price * Plants[i].heat_rate * EV::prod[n][t][i];
 				}
@@ -637,8 +820,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				//if (t > 0 && !Setting::heuristics1_active) 
 				if (t > 0)
 				{
-					Model.addConstr(-Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] <= EV::prod[n][t][i] - EV::prod[n][t - 1][i]);
+					//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
 					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+					Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+
 				}
 			}
 		}
@@ -671,12 +856,14 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			if (Branches[br].is_exist == 1)
 			{
 				Model.addConstr(EV::flowE[br][t] <= Branches[br].maxFlow);
-				Model.addConstr(-Branches[br].maxFlow <= EV::flowE[br][t]);
+				Model.addConstr(-EV::flowE[br][t] <= Branches[br].maxFlow);
+				//Model.addConstr(-Branches[br].maxFlow <= EV::flowE[br][t]);
 			}
 			else
 			{
 				Model.addConstr(EV::flowE[br][t] <= Branches[br].maxFlow * EV::Ze[br]);
-				Model.addConstr(-Branches[br].maxFlow * EV::Ze[br] <= EV::flowE[br][t]);
+				Model.addConstr(-EV::flowE[br][t] <= Branches[br].maxFlow * EV::Ze[br]);
+				//Model.addConstr(-Branches[br].maxFlow * EV::Ze[br] <= EV::flowE[br][t]);
 			}
 		}
 	}
@@ -708,13 +895,14 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			GRBLinExpr exp_trans(0);
 			for (int m : Enodes[n].adj_buses)
 			{
+				// instead of defining a dictionray, one could traverse the entire branches...
 				int key1 = n * 200 + m;
 				// check if this key exist, if not, the other order exisit
 				if (Le.count(key1) == 0)
 				{
 					key1 = m * 200 + n;
 				}
-				//each Le can contains multiple lines
+				//each Le can contain multiple lines
 				for (int l2 : Le[key1])
 				{
 					if (n > m)
@@ -734,12 +922,12 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
 			}
 			double dem = Enodes[n].demand[Te[t]];
-			dem = dem;
+			//dem = dem/1.896;
 			// ignore trans
 			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
 			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
 
-			EV::PB[n][t] = Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
+			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
 		}
 	}
 	// C8: flow equation
@@ -754,14 +942,16 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			if (Branches[br].is_exist == 1)
 			{
 				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2);
-				Model.addConstr(-1e-2 <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
+				Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2);
+				//Model.addConstr(-1e-2 <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
 			}
 			//else if (!Setting::heuristics1_active)
 			else
 			{
-				// Big M = Branches[br].suscep * 200
-				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2 + Branches[br].suscep * 200 * (1 - EV::Ze[br]));
-				Model.addConstr(-1e-2 - Branches[br].suscep * 200 * (1 - EV::Ze[br]) <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
+				double Big_M = std::abs(Branches[br].suscep * 24);
+				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= Big_M * (1 - EV::Ze[br]));
+				Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= Big_M * (1 - EV::Ze[br]));
+				//Model.addConstr(-Big_M * (1 - EV::Ze[br]) <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
 			}
 		}
 	}
@@ -773,7 +963,8 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 1; t < Te.size(); t++)
 		{
 			Model.addConstr(EV::theta[n][t] <= pi);
-			Model.addConstr(-pi <= EV::theta[n][t]);
+			Model.addConstr(-EV::theta[n][t] <= pi);
+			//Model.addConstr(-pi <= EV::theta[n][t]);
 		}
 	}
 
@@ -784,7 +975,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
-				if (Plants[i].type == "solar" | Plants[i].type == "solar-UPV")
+				if (Plants[i].type == "solar" || Plants[i].type == "solar-UPV")
 				{
 					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
 				}
@@ -807,7 +998,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		for (int t = 0; t < Te.size(); t++)
 		{
 			double dem = Enodes[n].demand[Te[t]];
-			dem = dem;
+			//dem = dem/1.896;
 			Model.addConstr(EV::curtE[n][t] <= dem);
 		}
 	}
@@ -932,31 +1123,31 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 #pragma region Fetch Data
 	vector<gnode> Gnodes = Params::Gnodes;
 	vector<pipe> PipeLines = Params::PipeLines;
-	vector<enode> Enodes = Params::Enodes;
+	/*vector<enode> Enodes = Params::Enodes;
 	vector<plant> Plants = Params::Plants;
-	vector<eStore> Estorage = Params::Estorage;
+	vector<eStore> Estorage = Params::Estorage;*/
 	vector<exist_gSVL> Exist_SVL = Params::Exist_SVL;
-	int nSVL = (int)Exist_SVL.size();
+	int nSVL = (int)Params::Exist_SVL.size();
 	vector<SVL> SVLs = Params::SVLs;
 	vector<branch> Branches = Params::Branches;
-	int nEnode = (int)Enodes.size();
-	int nPlt = (int)Plants.size();
-	int nBr = (int)Branches.size();
-	int neSt = (int)Estorage.size();
-	int nPipe = (int)PipeLines.size();
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
+	int nPipe = (int)Params::PipeLines.size();
 	vector<int> Tg = Params::Tg;
 	//vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
-	double pi = 3.14159;
-	int nGnode = (int)Gnodes.size();
+	//double pi = 3.14159;
+	int nGnode = (int)Params::Gnodes.size();
 	double WACC = Params::WACC;
-	int trans_unit_cost = Params::trans_unit_cost;
-	int trans_line_lifespan = Params::trans_line_lifespan;
+	//int trans_unit_cost = Params::trans_unit_cost;
+	//int trans_line_lifespan = Params::trans_line_lifespan;
 	int SVL_lifetime = Params::SVL_lifetime;
 	double NG_price = Params::NG_price;
 	double dfo_pric = Params::dfo_pric;
 	double coal_price = Params::coal_price;
-	double E_curt_cost = Params::E_curt_cost;
+	//double E_curt_cost = Params::E_curt_cost;
 	double G_curt_cost = Params::G_curt_cost;
 	double pipe_per_mile = Params::pipe_per_mile;
 	int pipe_lifespan = Params::pipe_lifespan;
@@ -979,7 +1170,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 	{
 		double s1 = std::pow(1.0 / (1 + WACC), pipe_lifespan);
 		double capco = WACC / (1 - s1);
-		double cost1 = PipeLines[i].length * pipe_per_mile;
+		double cost1 = Params::PipeLines[i].length * pipe_per_mile;
 
 		exp_pipe += capco * cost1 * GV::Zg[i];
 	}
@@ -1219,26 +1410,26 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 
 #pragma region Fetch Data
 	vector<gnode> Gnodes = Params::Gnodes;
-	//vector<pipe> PipeLines = Params::PipeLines;
+	vector<pipe> PipeLines = Params::PipeLines;
 	vector<enode> Enodes = Params::Enodes;
 	vector<plant> Plants = Params::Plants;
-	//vector<eStore> Estorage = Params::Estorage;
-	//vector<exist_gSVL> Exist_SVL = Params::Exist_SVL;
-	//int nSVL = Exist_SVL.size();
+	vector<eStore> Estorage = Params::Estorage;
+	vector<exist_gSVL> Exist_SVL = Params::Exist_SVL;
+	int nSVL = Exist_SVL.size();
 	vector<SVL> SVLs = Params::SVLs;
 	vector<branch> Branches = Params::Branches;
-	int nEnode = (int)Enodes.size();
-	int nPlt = (int)Plants.size();
-	int nBr = (int)Branches.size();
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
 	//int neSt = Estorage.size();
 	//int nPipe = PipeLines.size();
 	vector<int> Tg = Params::Tg;
 	vector<int> Te = Params::Te;
 	vector<int> time_weight = Params::time_weight;
 	//double pi = 3.1415926535897;
-	int nGnode = (int)Gnodes.size();
-	map<int, vector<int>> Le = Params::Le;
-	map<int, vector<int>> Lg = Params::Lg;
+	int nGnode = (int)Params::Gnodes.size();
+	//map<int, vector<int>> Le = Params::Le;
+	//map<int, vector<int>> Lg = Params::Lg;
 	vector<int> RepDaysCount = Params::RepDaysCount;
 	double NG_emis_rate = Params::NG_emis_rate;
 #pragma endregion
@@ -1246,7 +1437,7 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 
 #pragma region Coupling 1
 	//IloExpr ex_xi(env);
-	double flowge = 0;
+	//double flowge = 0;
 	for (int k = 0; k < nGnode; k++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -1258,23 +1449,24 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 				{
 					for (int i = 0; i < nPlt; i++)
 					{
-						if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
+						if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+							Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
 						{
 							if (Setting::DGSP_active)
 							{
 								//double s2 = std::max(0.001, EV::val_prod[n][t][i]);
-								exp2 += time_weight[t] * Plants[i].heat_rate * EV::val_prod[n][t][i];
-								flowge += time_weight[t] * Plants[i].heat_rate * EV::val_prod[n][t][i];
+								exp2 += Plants[i].heat_rate * EV::val_prod[n][t][i];
+								//flowge += time_weight[t] * Plants[i].heat_rate * EV::val_prod[n][t][i];
 							}
 							else
 							{
-								exp2 += time_weight[t] * Plants[i].heat_rate * EV::prod[n][t][i];
+								exp2 += Plants[i].heat_rate * EV::prod[n][t][i];
 							}
 						}
 					}
 				}
-				Model.addConstr(RepDaysCount[tau] * GV::flowGE[k][n][tau] - exp2 <= 1e-2);
-				Model.addConstr(exp2 - RepDaysCount[tau] * GV::flowGE[k][n][tau] <= 1e-2);
+				Model.addConstr(GV::flowGE[k][n][tau] == exp2 );
+				//Model.addConstr(exp2 - GV::flowGE[k][n][tau] <= 1e-2);
 				ex_xi += RepDaysCount[tau] * GV::flowGE[k][n][tau];
 			}
 		}
@@ -1297,7 +1489,7 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
-				if (Plants[i].type == "dfo" || Plants[i].type == "coal" || Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
 				{
 					ex_E_emis += time_weight[t] * Plants[i].emis_rate * Plants[i].heat_rate * EV::prod[n][t][i];
 				}
@@ -1307,3 +1499,5 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 #pragma endregion
 
 }
+
+

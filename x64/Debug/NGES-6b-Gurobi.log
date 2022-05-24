@@ -1,7 +1,3 @@
-﻿  Benders.cpp
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(1,9): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(927,26): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(928,25): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(932,26): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(933,25): warning C4244: 'argument': conversion from '__int64' to 'double', possible loss of data
+﻿  Main.cpp
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Main.cpp(129,35): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   NGES-6b-Gurobi.vcxproj -> C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\x64\Debug\NGES-6b-Gurobi.exe

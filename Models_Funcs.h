@@ -3,7 +3,7 @@
 #include "gurobi_c++.h"
 
 void Electricy_Network_Model();
-double feas_sol(double& elec_LB, double& elec_UB,double& ng_obj, double& feas_gap);
+double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_gap);
 void NG_Network_Model();
 
 
@@ -17,7 +17,7 @@ double DESP();
 
 void Read_rep_days(string name, vector<int>& Rep, vector<int>& RepCount);
 
-void Populate_EV(GRBModel& Model);
+void Populate_EV_SP(GRBModel& Model);
 void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj);
 void Populate_GV(GRBModel& Model);
 void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj);
@@ -93,12 +93,11 @@ struct EV
 	static	GRBVar dfo_coal_emis_cost;
 	static GRBVar e_system_cost;
 
-	// Dual variables for power balance constraint to get the locational price of natural gas
-	static GRBConstr** PB;// = new GRBConstr * [Params::Plants.size()];
+
 
 	static double*** val_prod;
-	static double*** val_sCh;
-	static double*** val_sDis;
+	static double*** val_eSch;
+	static double*** val_eSdis;
 	static	double val_est_cost;
 	static	double val_decom_cost;
 	static	double val_fixed_cost;
@@ -127,7 +126,8 @@ struct EV
 	static double** val_curtE;
 	static double*** val_eSlev;
 
-	static double** val_PB; // power balance equation dual variables
+
+
 };
 
 struct GV
@@ -164,7 +164,8 @@ struct GV
 	static double val_NG_import_cost;
 	static double val_NG_system_cost;
 
-	static double* val_supply;
+	static double* val_total_nodal_supply;
+	static double** val_supply;
 	static double val_ng_curt;
 	static double val_rng_curt;
 	static int val_num_est_pipe;
@@ -205,6 +206,53 @@ struct MP
 
 struct SP
 {
+	static double SP_Primal_obj;
+	static double SP_Dual_obj;
+	// Dual variables for power balance constraint to get the locational price of natural gas
+// or to get dual information to add cuts
+	static GRBConstr* d_alpha;
+	static GRBConstr*** d_beta;
+	static GRBConstr*** d_gamma1;
+	static GRBConstr*** d_gamma2;
+	static GRBConstr** d_delta11;
+	static GRBConstr** d_delta12;
+	static GRBConstr** d_delta21;
+	static GRBConstr** d_delta22;
+	static GRBConstr** d_theta;// = new GRBConstr * [Params::Plants.size()];
+	static GRBConstr** d_zeta11;
+	static GRBConstr** d_zeta12;
+	static GRBConstr** d_zeta21;
+	static GRBConstr** d_zeta22;
+	static GRBConstr** d_eta1;
+	static GRBConstr** d_eta2;
+	static GRBConstr*** d_pi;
+	static GRBConstr** d_phi;
+	static GRBConstr d_omega;
+	static GRBConstr*** d_rho;
+	static GRBConstr d_tau;
+
+	static double* dual_val_alpha;
+	static double*** dual_val_beta;
+	static double*** dual_val_gamma1;
+	static double*** dual_val_gamma2;
+	static double** dual_val_delta11;
+	static double** dual_val_delta12;
+	static double** dual_val_delta21;
+	static double** dual_val_delta22;
+	static double** dual_val_theta; // power balance equation dual variables
+	static double** dual_val_zeta11;
+	static double** dual_val_zeta12;
+	static double** dual_val_zeta21;
+	static double** dual_val_zeta22;
+	static double** dual_val_eta1;
+	static double** dual_val_eta2;
+	static double*** dual_val_pi;
+	static double** dual_val_phi;
+	static double dual_val_omega;
+	static double*** dual_val_rho;
+	static double dual_val_tau;
+
+
 
 	// from coupling constraints
 	static GRBVar*** rho;
