@@ -116,6 +116,7 @@ struct EV
 	static double val_total_curt; // total load shedding
 	static double val_num_est_trans; // number of new transmission lines established
 	static double val_total_flow; // total flow in the E network
+	static double** val_flowE; // total flow in the E network
 	static double* val_total_prod; // total production	
 	static double** val_Xop;
 	static double** val_Xest;
@@ -125,14 +126,13 @@ struct EV
 	static double MIP_gap;
 	static double** val_curtE;
 	static double*** val_eSlev;
-
+	static double** val_theta;
 
 
 };
 
 struct GV
 {
-
 	static GRBVar* Xstr;
 	static GRBVar* Xvpr;
 	static GRBVar** Sstr;
@@ -185,23 +185,10 @@ struct CV
 	static GRBVar xi; // flow from NG to E network (NG consumed by NG-fired plants)
 	static GRBVar NG_emis; // emission from NG network
 	static GRBVar E_emis; // emission from Electricity network. 
-
-
 	static double used_emis_cap; // eta value from the DGSP of the Approach 2
-
 	static double val_xi; // f
 	static double val_NG_emis;
 	static double val_E_emis;
-
-};
-
-
-void Subproblem();
-void Primal_subproblem();
-void Elec_Module_Primal_SP(GRBModel& Model, GRBLinExpr& exp_Eobj);
-struct MP
-{
-	static GRBVar Psi;
 };
 
 struct SP
@@ -210,62 +197,69 @@ struct SP
 	static double SP_Dual_obj;
 	// Dual variables for power balance constraint to get the locational price of natural gas
 // or to get dual information to add cuts
-	static GRBConstr* d_alpha;
-	static GRBConstr*** d_beta;
-	static GRBConstr*** d_gamma1;
-	static GRBConstr*** d_gamma2;
+	//static GRBConstr* d_alpha;
+	//static GRBConstr*** d_beta;
+	//static GRBConstr*** d_gamma1;
+	//static GRBConstr*** d_gamma2;
 	static GRBConstr** d_delta11;
 	static GRBConstr** d_delta12;
 	static GRBConstr** d_delta21;
 	static GRBConstr** d_delta22;
-	static GRBConstr** d_theta;// = new GRBConstr * [Params::Plants.size()];
+	static GRBConstr** d_theta1;
+	static GRBConstr** d_theta2;
 	static GRBConstr** d_zeta11;
 	static GRBConstr** d_zeta12;
 	static GRBConstr** d_zeta21;
 	static GRBConstr** d_zeta22;
 	static GRBConstr** d_eta1;
 	static GRBConstr** d_eta2;
-	static GRBConstr*** d_pi;
-	static GRBConstr** d_phi;
-	static GRBConstr d_omega;
-	static GRBConstr*** d_rho;
-	static GRBConstr d_tau;
+	//static GRBConstr*** d_pi;
+	//static GRBConstr** d_phi;
+	//static GRBConstr d_omega;
+	//static GRBConstr*** d_rho1;
+	//static GRBConstr*** d_rho2;
+	//static GRBConstr d_tau;
 
-	static double* dual_val_alpha;
+	/*static double* dual_val_alpha;
 	static double*** dual_val_beta;
 	static double*** dual_val_gamma1;
-	static double*** dual_val_gamma2;
+	static double*** dual_val_gamma2;*/
 	static double** dual_val_delta11;
 	static double** dual_val_delta12;
 	static double** dual_val_delta21;
 	static double** dual_val_delta22;
-	static double** dual_val_theta; // power balance equation dual variables
+	static double** dual_val_theta1;
+	static double** dual_val_theta2;
 	static double** dual_val_zeta11;
 	static double** dual_val_zeta12;
 	static double** dual_val_zeta21;
 	static double** dual_val_zeta22;
 	static double** dual_val_eta1;
 	static double** dual_val_eta2;
-	static double*** dual_val_pi;
-	static double** dual_val_phi;
-	static double dual_val_omega;
-	static double*** dual_val_rho;
-	static double dual_val_tau;
+	//static double*** dual_val_pi;
+	//static double** dual_val_phi;
+	//static double dual_val_omega;
+	//static double*** dual_val_rho1;
+	//static double*** dual_val_rho2;
+	//static double dual_val_tau;
 
 
 
 	// from coupling constraints
-	static GRBVar*** rho;
-	static GRBVar tau;
+	//static GRBVar*** rho;
+	//static GRBVar tau;
 
-	static GRBVar* alpha;
-	static GRBVar*** beta;
-	static GRBVar*** gamma1;
-	static GRBVar*** gamma2;
-	static GRBVar** delta11;	static GRBVar** delta12;
-	static GRBVar** delta21; 	static GRBVar** delta22;
+	//static GRBVar* alpha;
+	//static GRBVar*** beta;
+	//static GRBVar*** gamma1;
+	//static GRBVar*** gamma2;
+	static GRBVar** delta11;
+	static GRBVar** delta12;
+	static GRBVar** delta21;
+	static GRBVar** delta22;
 
-	static GRBVar** theta;
+	static GRBVar** theta1;
+	static GRBVar** theta2;
 
 	static GRBVar** zeta11;
 	static GRBVar** zeta12;
@@ -275,7 +269,20 @@ struct SP
 	static GRBVar** eta2;
 	static GRBVar* eta3;
 
-	static GRBVar*** pi;
-	static GRBVar** phi;
-	static GRBVar omega;
+	//static GRBVar*** pi;
+	//static GRBVar** phi;
+	//static GRBVar omega;
+};
+void Primal_subproblem(vector<SP>& Cust);
+void Master_Problem(vector<SP> Cuts);
+void Benders_Decomposition();
+void Dual_Subproblem();
+
+
+
+
+
+struct MP
+{
+	static GRBVar Psi;
 };

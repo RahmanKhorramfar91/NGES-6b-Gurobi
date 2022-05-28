@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 	//Setting::heuristics1_active = true;
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
-	Setting::print_all_vars = false;
+	Setting::print_all_vars = true;
 #pragma endregion
 
 #pragma region  Other parameters   
@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
 		Setting::Approach_2_active = ap2;
 	}
 
-	Primal_subproblem();
+	Benders_Decomposition();
 	//Subproblem();
 
 

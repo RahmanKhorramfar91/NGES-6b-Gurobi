@@ -35,7 +35,7 @@ void Get_EV_vals(GRBModel Model)
 			}
 			//EV::dual_val_theta[n][t] = EV::d_theta[n][t].get(GRB_DoubleAttr_Pi);
 			//EV::dual_val_phi[n][t] = EV::d_phi[n][t].get(GRB_DoubleAttr_Pi);
-			ave_price += SP::dual_val_theta[n][t];
+			ave_price += SP::dual_val_theta1[n][t];
 			/*if (EV::val_PB[n][t]>0)
 			{
 				cout << "PB[" << n << "][" << t << "] = " << EV::val_PB[n][t] << endl;
@@ -144,15 +144,15 @@ void Get_EV_vals(GRBModel Model)
 		}
 	}
 
-	double** fs = new double* [nBr];
+	EV::val_flowE = new double* [nBr];
 	for (int b = 0; b < nBr; b++)
 	{
-		fs[b] = new double[Te.size()]();
+		EV::val_flowE[b] = new double[Te.size()]();
 		for (int t = 0; t < Te.size(); t++)
 		{
 			//if (t > periods2print) { break; }
 			EV::val_total_flow += time_weight[t] * EV::flowE[b][t].get(GRB_DoubleAttr_X);
-			fs[b][t] = EV::flowE[b][t].get(GRB_DoubleAttr_X);
+			EV::val_flowE[b][t] = EV::flowE[b][t].get(GRB_DoubleAttr_X);
 			//if (std::abs(fs[b][t]) > 10e-3)
 			//{
 			//	//std::cout << "flowE[" << n << "][" << t << "][" << Enodes[n].adj_buses[m] << "] = " << fs[n][t][m] << endl;
@@ -231,6 +231,17 @@ void Get_EV_vals(GRBModel Model)
 			//}
 		}
 	}
+	 
+	EV::val_theta = new double* [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_theta[n] = new double[Te.size()]();
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_theta[n][t] = EV::theta[n][t].get(GRB_DoubleAttr_X);
+		}
+	}
+
 
 	// Storage variables
 	double** YeCDs = new double* [nEnode];
@@ -424,7 +435,7 @@ void Get_GV_vals(GRBModel Model)
 		GV::val_supply[k] = new double[Tg.size()]();
 		for (int tau = 0; tau < Tg.size(); tau++)
 		{
-			GV::val_total_nodal_supply[k] = RepDaysCount[tau] * GV::supply[k][tau].get(GRB_DoubleAttr_X);
+			GV::val_total_nodal_supply[k] += RepDaysCount[tau] * GV::supply[k][tau].get(GRB_DoubleAttr_X);
 			GV::val_supply[k][tau] = GV::supply[k][tau].get(GRB_DoubleAttr_X);
 			/*if (s1 > 0)
 			{

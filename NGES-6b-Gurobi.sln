@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.32014.148
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32510.428
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NGES-6b-Gurobi", "NGES-6b-Gurobi.vcxproj", "{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}"
 EndProject
@@ -15,8 +15,8 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Debug|x64.ActiveCfg = Debug|x64
 		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Debug|x64.Build.0 = Debug|x64
-		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Debug|x86.ActiveCfg = Debug|Win32
-		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Debug|x86.Build.0 = Debug|Win32
+		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Debug|x86.ActiveCfg = Debug|x64
+		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Debug|x86.Build.0 = Debug|x64
 		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Release|x64.ActiveCfg = Release|x64
 		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Release|x64.Build.0 = Release|x64
 		{C7BCCF79-CB77-4AEA-AE21-27D7BCEF930D}.Release|x86.ActiveCfg = Release|Win32
@@ -26,6 +26,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {19EA13C2-9433-44A9-84B5-2D236858AA83}
+		SolutionGuid = {9841EC21-4CB1-4942-98DE-733DF22809AB}
 	EndGlobalSection
 EndGlobal
