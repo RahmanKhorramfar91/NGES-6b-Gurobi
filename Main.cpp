@@ -157,6 +157,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+	SP_flow_Upper();
 
 	if (Setting::Case == 1)
 	{

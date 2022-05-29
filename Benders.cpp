@@ -1,5 +1,312 @@
 #include"Models_Funcs.h";
 
+// validate Benders SP by solving the primal Subproblem
+void SP_flow_Upper()
+{
+	double eps = 0.00;
+	//auto start = chrono::high_resolution_clock::now();
+#pragma region Fetch Data
+
+	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
+{"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
+		{"Ct",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
+	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
+{2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };
+	vector<gnode> Gnodes = Params::Gnodes;
+	vector<pipe> PipeLines = Params::PipeLines;
+	vector<enode> Enodes = Params::Enodes;
+	vector<plant> Plants = Params::Plants;
+	vector<eStore> Estorage = Params::Estorage;
+	vector<branch> Branches = Params::Branches;
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
+	vector<int> Tg = Params::Tg;
+	vector<int> Te = Params::Te;
+	vector<int> time_weight = Params::time_weight;
+	double pi = 3.141592;
+	int nGnode = (int)Params::Gnodes.size();
+	double WACC = Params::WACC;
+	int trans_unit_cost = Params::trans_unit_cost;
+	int trans_line_lifespan = Params::trans_line_lifespan;
+	double NG_price = Params::NG_price;
+	double dfo_pric = Params::dfo_pric;
+	double coal_price = Params::coal_price;
+	double nuclear_price = Params::nuclear_price;
+	double E_curt_cost = Params::E_curt_cost;
+	double G_curt_cost = Params::G_curt_cost;
+	double pipe_per_mile = Params::pipe_per_mile;
+	int pipe_lifespan = Params::pipe_lifespan;
+	int battery_lifetime = Params::battery_lifetime;
+	map<int, vector<int>> Le = Params::Le;
+	vector<int> RepDaysCount = Params::RepDaysCount;
+#pragma endregion
+	auto start = chrono::high_resolution_clock::now();
+	GRBEnv* envB = 0;
+	envB = new GRBEnv();
+	GRBModel Model = GRBModel(envB);
+	//GRBLinExpr exp_NGobj(0);
+	GRBLinExpr exp_Eobj(0);
+
+	Setting::relax_int_vars = true;
+	Populate_EV_SP(Model);
+	//Populate_GV(Model);
+	//Elec_Module_Primal_SP(Model, exp_Eobj);
+
+	//NG_Module(Model, exp_NGobj);
+
+	Setting::Approach_1_active = false; Setting::Approach_2_active = false;
+
+#pragma region Set some variables
+	for (int b = 0; b < nBr; b++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			//Model.addConstr(EV::flowE[b][t] == EV::val_flowE[b][t]);
+		}
+	}
+#pragma endregion
+
+	GRBVar** flowE_abs1 = new GRBVar * [nBr];
+	GRBVar** flowE_abs2 = new GRBVar * [nBr];
+#pragma region Objective Function
+	for (int b = 0; b < nBr; b++)
+	{
+		flowE_abs1[b] = Model.addVars(Te.size());
+		flowE_abs2[b] = Model.addVars(Te.size());
+		for (int t = 0; t < Te.size(); t++)
+		{
+			exp_Eobj += flowE_abs1[b][t] ;
+			//Model.addConstr(EV::flowE[b][t] == flowE_abs1[b][t] - flowE_abs2[b][t]);
+			Model.addGenConstrAbs(flowE_abs1[b][t], EV::flowE[b][t]);
+		}
+	}
+	Model.setObjective(exp_Eobj, GRB_MAXIMIZE);
+	Model.addConstr(exp_Eobj <= 10e11);
+#pragma endregion
+
+#pragma region Electricity Network Constraints
+	// C1, C2: number of generation units at each node	
+	// C 3.5: max yearly generation for existing plants
+	for (int i = 0; i < nPlt; i++)
+	{
+		GRBLinExpr ex0(0);
+		if (Plants[i].is_exis != 1) { continue; }
+
+		for (int n = 0; n < nEnode; n++)
+		{
+			for (int t = 0; t < Te.size(); t++)
+			{
+				ex0 += time_weight[t] * EV::prod[n][t][i];
+			}
+		}
+		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
+	}
+	//C3, C4: production limit, ramping	
+	// C5, C6: flow limit for electricity
+	for (int br = 0; br < nBr; br++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (Branches[br].is_exist == 1)
+			{
+				Model.addConstr(-EV::flowE[br][t] >= -Branches[br].maxFlow);
+				Model.addConstr(EV::flowE[br][t] >= -Branches[br].maxFlow);
+			}
+			else
+			{
+				Model.addConstr(-EV::flowE[br][t] >= -(Branches[br].maxFlow * EV::Ze[br]));
+				Model.addConstr(EV::flowE[br][t] >= -(Branches[br].maxFlow * EV::Ze[br]));
+			}
+		}
+	}
+
+	// peak demand
+	//C7: power balance
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			GRBLinExpr exp_prod(0);
+			for (int i = 0; i < nPlt; i++)
+			{
+				exp_prod += EV::prod[n][t][i];
+			}
+			GRBLinExpr exp_trans(0);
+			//double trans = 0;
+			for (int m : Params::Enodes[n].adj_buses)
+			{
+				// instead of defining a dictionray, one could traverse all branches...
+				int key1 = n * 200 + m;
+				// check if this key exist, if not, the other order exisit
+				if (Params::Le.count(key1) == 0)
+				{
+					key1 = m * 200 + n;
+				}
+				//each Le can contain multiple lines
+				for (int l2 : Params::Le[key1])
+				{
+					if (n > m)
+					{
+						exp_trans -= EV::flowE[l2][t];
+						//trans -= EV::val_flowE[l2][t];
+					}
+					else
+					{
+						exp_trans += EV::flowE[l2][t];
+						//trans += EV::val_flowE[l2][t];
+					}
+				}
+			}
+			GRBLinExpr str(0);
+			for (int r = 0; r < neSt; r++)
+			{
+				str += EV::eSdis[n][t][r] - EV::eSch[n][t][r]; //commented
+			}
+			double dem = Params::Enodes[n].demand[Te[t]];
+			double rhs = dem;
+
+			Model.addConstr(exp_trans + exp_prod + str + EV::curtE[n][t] == rhs);
+		}
+	}
+	// C8: flow equation
+	int ebr = 0;
+	for (int br = 0; br < Branches.size(); br++)
+	{
+		int fb = Branches[br].from_bus;
+		int tb = Branches[br].to_bus;
+		for (int t = 0; t < Te.size(); t++)
+		{
+			//if (Branches[br].is_exist == 1 && !Setting::heuristics1_active)
+			if (Branches[br].is_exist == 1)
+			{
+				Model.addConstr(EV::flowE[br][t] >= Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) - eps);
+				Model.addConstr(-EV::flowE[br][t] >= -Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) - eps);
+			}
+			else
+			{
+				double Big_M = std::abs(Branches[br].suscep * 24);
+				//double rhs = std::max(0.0, Big_M * (1 - EV::val_Ze[br]));
+				Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) >= -Big_M * (1 - EV::Ze[br]));
+				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) >= -Big_M * (1 - EV::Ze[br]));
+				//Model.addConstr(-Big_M * (1 - EV::val_Ze[br]) <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
+			}
+		}
+	}
+
+	// C9: phase angle (theta) limits. already applied in the definition of the variable
+	for (int n = 0; n < nEnode; n++)
+	{
+		Model.addConstr(EV::theta[n][0] == 0);
+		for (int t = 1; t < Te.size(); t++)
+		{
+			Model.addConstr(-EV::theta[n][t] >= -pi);
+			Model.addConstr(EV::theta[n][t] >= -pi);
+		}
+	}
+
+	// C10: VRE production profile
+
+
+	// C11: demand curtainlment constraint
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double dem = Enodes[n].demand[Te[t]];
+			//dem = dem/1.896;
+			Model.addConstr(EV::curtE[n][t] <= dem);
+		}
+	}
+	////C12: RPS constraints
+	//// C14,C15,C16 storage constraints
+
+
+#pragma endregion
+
+
+	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
+	//Model.set(GRB_IntParam_Method, 0);
+
+
+	//Model.set(GRB_IntParam_OutputFlag, 0);
+
+	Model.optimize();
+	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
+	{
+		std::cout << "Failed to optimize Primal SP!!!" << endl;
+		std::cout << Model.get(GRB_IntAttr_Status);
+	}
+
+
+	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
+	double gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		double gap = Model.get(GRB_DoubleAttr_MIPGap);
+	}
+
+	//Get_EV_vals(Model);
+	//Print_Results(0, 0);
+
+	auto end = chrono::high_resolution_clock::now();
+	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
+	std::cout << "\n\n flowE upper Elapsed time: " << Elapsed << endl;
+	std::cout << "\t flowE_upper Obj Value:" << obj_val << endl;
+	std::cout << "\t Gap: " << gap << " Status:" << Model.get(GRB_IntAttr_Status) << endl;
+
+
+
+
+#pragma region Print variables
+
+
+	std::cout << "val_flowE" << endl;
+	for (int b = 0; b < nBr; b++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double flowe = flowE_abs1[b][t].get(GRB_DoubleAttr_X);
+			if (flowe > 0)
+			{
+				std::cout << "flowE[" << b << "][" << t << "] = " << flowe << endl;
+			}
+		}
+	}
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				double prod = EV::prod[n][t][i].get(GRB_DoubleAttr_X);
+				if (prod > 0)
+				{
+					std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prod << endl;
+				}
+			}
+		}
+	}
+
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double curtE = EV::curtE[n][t].get(GRB_DoubleAttr_X);
+			if (curtE > 0)
+			{
+				std::cout << "curtE[" << n << "][" << t << "] = " << curtE << endl;
+			}
+		}
+	}
+#pragma endregion
+
+	Setting::Approach_1_active = true; Setting::Approach_2_active = false;
+}
+
 
 // validate Benders SP by solving the primal Subproblem
 void Primal_subproblem(vector<SP>& Cuts)
@@ -72,7 +379,7 @@ void Primal_subproblem(vector<SP>& Cuts)
 
 #pragma region Objective Function
 	//Model.addConstr(exp_Eobj == 11);
-	exp_Eobj = 0;
+	exp_Eobj = 11;
 	Model.setObjective(exp_Eobj, GRB_MINIMIZE);
 #pragma endregion
 
@@ -89,13 +396,12 @@ void Primal_subproblem(vector<SP>& Cuts)
 			{
 				SP::d_delta11[br][t] = Model.addConstr(-EV::flowE[br][t] >= -Branches[br].maxFlow);
 				SP::d_delta12[br][t] = Model.addConstr(EV::flowE[br][t] >= -Branches[br].maxFlow);
-
 			}
 			else
 			{
 				double rhs = (Branches[br].maxFlow * EV::val_Ze[br]);
-				SP::d_delta21[br][t] = Model.addConstr(-EV::flowE[br][t] >= -rhs - eps);
-				SP::d_delta22[br][t] = Model.addConstr(EV::flowE[br][t] >= -rhs - eps);
+				SP::d_delta21[br][t] = Model.addConstr(-EV::flowE[br][t] >= -rhs);
+				SP::d_delta22[br][t] = Model.addConstr(EV::flowE[br][t] >= -rhs);
 			}
 		}
 	}
@@ -113,10 +419,10 @@ void Primal_subproblem(vector<SP>& Cuts)
 				exp_prod += EV::val_prod[n][t][i];
 			}
 			GRBLinExpr exp_trans(0);
-			double trans = 0;
+			//double trans = 0;
 			for (int m : Params::Enodes[n].adj_buses)
 			{
-				// instead of defining a dictionray, one could traverse the entire branches...
+				// instead of defining a dictionray, one could traverse all branches...
 				int key1 = n * 200 + m;
 				// check if this key exist, if not, the other order exisit
 				if (Params::Le.count(key1) == 0)
@@ -129,12 +435,12 @@ void Primal_subproblem(vector<SP>& Cuts)
 					if (n > m)
 					{
 						exp_trans -= EV::flowE[l2][t];
-						trans -= EV::val_flowE[l2][t];
+						//trans -= EV::val_flowE[l2][t];
 					}
 					else
 					{
 						exp_trans += EV::flowE[l2][t];
-						trans += EV::val_flowE[l2][t];
+						//trans += EV::val_flowE[l2][t];
 					}
 				}
 			}
@@ -146,13 +452,8 @@ void Primal_subproblem(vector<SP>& Cuts)
 			double dem = Params::Enodes[n].demand[Te[t]];
 			double rhs = dem - str - exp_prod - EV::val_curtE[n][t];
 
-			//if (trans<rhs-eps || -trans< -rhs-eps)
-			if (std::abs(rhs - trans) > eps)
-			{
-				cout << "n:" << n << "\t t: " << t << "\t trans: " << trans << "\t rhs : " << rhs << endl;
-			}
-			SP::d_theta1[n][t] = Model.addConstr(exp_trans >= rhs - eps);
-			SP::d_theta2[n][t] = Model.addConstr(-exp_trans >= -rhs - eps);
+			SP::d_theta1[n][t] = Model.addConstr(exp_trans >= rhs);
+			SP::d_theta2[n][t] = Model.addConstr(-exp_trans >= -rhs);
 		}
 	}
 	// C8: flow equation
@@ -168,38 +469,13 @@ void Primal_subproblem(vector<SP>& Cuts)
 			{
 				SP::d_zeta21[br][t] = Model.addConstr(EV::flowE[br][t] >= Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) - eps);
 				SP::d_zeta22[br][t] = Model.addConstr(-EV::flowE[br][t] >= -Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) - eps);
-
-				if (EV::val_flowE[br][t] < Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) - eps)
-				{
-					cout << EV::val_flowE[br][t] << endl;
-					cout << Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) - eps << endl;
-					int gg = 0;
-				}
-				if (-EV::val_flowE[br][t] < -Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) - eps)
-				{
-					cout << -EV::val_flowE[br][t] << endl;
-					cout << -Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) - eps << endl;
-					int gg = 0;
-				}
-
 			}
-			//else if (!Setting::heuristics1_active)
 			else
 			{
 				double Big_M = std::abs(Branches[br].suscep * 24);
 				double rhs = std::max(0.0, Big_M * (1 - EV::val_Ze[br]));
 				SP::d_zeta11[br][t] = Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) >= -rhs - eps);
 				SP::d_zeta12[br][t] = Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) >= -rhs - eps);
-
-				if (-EV::val_flowE[br][t] + Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) < -rhs - eps)
-				{
-					int gg = 0;
-				}
-				if (EV::val_flowE[br][t] - Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) < -rhs - eps)
-				{
-					int gg = 0;
-				}
-
 				//Model.addConstr(-Big_M * (1 - EV::val_Ze[br]) <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
 			}
 		}
@@ -320,10 +596,6 @@ void Primal_subproblem(vector<SP>& Cuts)
 #pragma endregion
 
 #pragma region Get dual values
-	/*SP::dual_val_alpha = new double[nPlt]();
-	SP::dual_val_beta = new double** [nEnode];
-	SP::dual_val_gamma1 = new double** [nEnode];
-	SP::dual_val_gamma2 = new double** [nEnode];*/
 	SP::dual_val_delta11 = new double* [nBr];
 	SP::dual_val_delta12 = new double* [nBr];
 	SP::dual_val_delta21 = new double* [nBr];
@@ -336,65 +608,27 @@ void Primal_subproblem(vector<SP>& Cuts)
 	SP::dual_val_zeta22 = new double* [nBr];
 	SP::dual_val_eta1 = new double* [nEnode];
 	SP::dual_val_eta2 = new double* [nEnode];
-	//SP::dual_val_pi = new double** [nEnode];
-	//SP::dual_val_phi = new double* [nEnode];
-
-	//SP::dual_val_omega = SP::d_omega.get(GRB_DoubleAttr_Pi);
-
-
-
-	/*for (int i = 0; i < nPlt; i++)
-	{
-		if (Plants[i].is_exis != 1) { continue; }
-		SP::dual_val_alpha[i] = SP::d_alpha[i].get(GRB_DoubleAttr_Pi);
-	}*/
 
 	for (int n = 0; n < nEnode; n++)
 	{
 		SP::dual_val_theta1[n] = new double[Te.size()]();
 		SP::dual_val_theta2[n] = new double[Te.size()]();
-		/*SP::dual_val_phi[n] = new double[Te.size()]();
-		SP::dual_val_beta[n] = new double* [Te.size()];
-		SP::dual_val_gamma1[n] = new double* [Te.size()];
-		SP::dual_val_gamma2[n] = new double* [Te.size()];
+
 		SP::dual_val_eta1[n] = new double[Te.size()]();
-		SP::dual_val_pi[n] = new double* [Te.size()];*/
 		SP::dual_val_eta2[n] = new double[Te.size()]();
 		double ave_price = 0;
 		for (int t = 0; t < Te.size(); t++)
 		{
-			SP::dual_val_theta1[n][t] = SP::d_theta1[n][t].get(GRB_DoubleAttr_Pi);
-			SP::dual_val_theta2[n][t] = SP::d_theta2[n][t].get(GRB_DoubleAttr_Pi);
-			/*SP::dual_val_phi[n][t] = SP::d_phi[n][t].get(GRB_DoubleAttr_Pi);
-			SP::dual_val_beta[n][t] = new double[nPlt]();
-			SP::dual_val_gamma1[n][t] = new double[nPlt]();
-			SP::dual_val_gamma2[n][t] = new double[nPlt]();
-			SP::dual_val_pi[n][t] = new double[nPlt]();*/
+			SP::dual_val_theta1[n][t] = std::max(0.0, SP::d_theta1[n][t].get(GRB_DoubleAttr_Pi));
+			SP::dual_val_theta2[n][t] = std::max(0.0, SP::d_theta2[n][t].get(GRB_DoubleAttr_Pi));
 			if (t > 0)
 			{
-				SP::dual_val_eta1[n][t] = SP::d_eta1[n][t].get(GRB_DoubleAttr_Pi);
-				SP::dual_val_eta2[n][t] = SP::d_eta2[n][t].get(GRB_DoubleAttr_Pi);
-			}
-
-			for (int i = 0; i < nPlt; i++)
-			{
-				//SP::dual_val_beta[n][t][i] = SP::d_beta[n][t][i].get(GRB_DoubleAttr_Pi);
-
-				if (Plants[i].type == "solar" || Plants[i].type == "solar-UPV" ||
-					Plants[i].type == "wind" || Plants[i].type == "wind-new" ||
-					Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new")
-				{
-					//SP::dual_val_pi[n][t][i] = SP::d_pi[n][t][i].get(GRB_DoubleAttr_Pi);
-				}
-
-				if (t > 0)
-				{
-					//SP::dual_val_gamma1[n][t][i] = SP::d_gamma1[n][t][i].get(GRB_DoubleAttr_Pi);
-					//SP::dual_val_gamma2[n][t][i] = SP::d_gamma2[n][t][i].get(GRB_DoubleAttr_Pi);
-				}
+				SP::dual_val_eta1[n][t] = std::max(0.0, SP::d_eta1[n][t].get(GRB_DoubleAttr_Pi));
+				SP::dual_val_eta2[n][t] = std::max(0.0, SP::d_eta2[n][t].get(GRB_DoubleAttr_Pi));
 			}
 		}
 	}
+
 	for (int b = 0; b < nBr; b++)
 	{
 		SP::dual_val_delta11[b] = new double[Te.size()];
@@ -410,19 +644,42 @@ void Primal_subproblem(vector<SP>& Cuts)
 		{
 			if (Branches[b].is_exist == 1)
 			{
-				SP::dual_val_delta11[b][t] = SP::d_delta11[b][t].get(GRB_DoubleAttr_Pi);
-				SP::dual_val_delta12[b][t] = SP::d_delta12[b][t].get(GRB_DoubleAttr_Pi);
-				SP::dual_val_zeta21[b][t] = SP::d_zeta21[b][t].get(GRB_DoubleAttr_Pi);
-				SP::dual_val_zeta22[b][t] = SP::d_zeta22[b][t].get(GRB_DoubleAttr_Pi);
+				SP::dual_val_delta11[b][t] = std::max(0.0, SP::d_delta11[b][t].get(GRB_DoubleAttr_Pi));
+				SP::dual_val_delta12[b][t] = std::max(0.0, SP::d_delta12[b][t].get(GRB_DoubleAttr_Pi));
+				SP::dual_val_zeta21[b][t] = std::max(0.0, SP::d_zeta21[b][t].get(GRB_DoubleAttr_Pi));
+				SP::dual_val_zeta22[b][t] = std::max(0.0, SP::d_zeta22[b][t].get(GRB_DoubleAttr_Pi));
 			}
 			else
 			{
-				SP::dual_val_delta21[b][t] = SP::d_delta21[b][t].get(GRB_DoubleAttr_Pi);
-				SP::dual_val_delta22[b][t] = SP::d_delta22[b][t].get(GRB_DoubleAttr_Pi);
+				SP::dual_val_delta21[b][t] = std::max(0.0, SP::d_delta21[b][t].get(GRB_DoubleAttr_Pi));
+				SP::dual_val_delta22[b][t] = std::max(0.0, SP::d_delta22[b][t].get(GRB_DoubleAttr_Pi));
 
 
-				SP::dual_val_zeta11[b][t] = SP::d_zeta11[b][t].get(GRB_DoubleAttr_Pi);
-				SP::dual_val_zeta12[b][t] = SP::d_zeta12[b][t].get(GRB_DoubleAttr_Pi);
+				SP::dual_val_zeta11[b][t] = std::max(0.0, SP::d_zeta11[b][t].get(GRB_DoubleAttr_Pi));
+				SP::dual_val_zeta12[b][t] = std::max(0.0, SP::d_zeta12[b][t].get(GRB_DoubleAttr_Pi));
+			}
+		}
+	}
+
+	std::cout << "dual_val_theta1: " << endl;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (SP::dual_val_theta1[n][t] > 0.0)
+			{
+				std::cout << SP::dual_val_theta1[n][t] << endl;
+			}
+		}
+	}
+	std::cout << "dual_val_theta2: " << endl;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (SP::dual_val_theta2[n][t] > 0.0)
+			{
+				std::cout << SP::dual_val_theta2[n][t] << endl;
 			}
 		}
 	}
@@ -543,7 +800,7 @@ void Primal_subproblem(vector<SP>& Cuts)
 	//		{
 	//			SP::SP_Dual_obj += GV::val_flowGE[k][n][tau] * SP::dual_val_rho1[k][n][tau];
 	//			SP::SP_Dual_obj -= GV::val_flowGE[k][n][tau] * SP::dual_val_rho2[k][n][tau];
-	//			//cout << SP::dual_val_rho[k][n][tau] << endl;
+	//			//std::cout << SP::dual_val_rho[k][n][tau] << endl;
 	//			//std::cout << "flowGE[" << k << "][" << n << "][" << tau << "] = " << GV::val_flowGE[k][n][tau] << endl;
 	//			fge += GV::val_flowGE[k][n][tau];
 	//		}
@@ -610,7 +867,7 @@ void Primal_subproblem(vector<SP>& Cuts)
 	//		{
 	//			//SP::SP_Dual_obj += GV::val_flowGE[k][n][tau] * SP::dual_val_rho[k][n][tau]; // commented
 	//			//std::cout << SP::dual_val_rho[k][n][tau] << endl;
-	//			//std::std::cout << "flowGE[" << k << "][" << n << "][" << tau << "] = " << GV::val_flowGE[k][n][tau] << endl;
+	//			//std::cout << "flowGE[" << k << "][" << n << "][" << tau << "] = " << GV::val_flowGE[k][n][tau] << endl;
 	//			//fge += GV::val_flowGE[k][n][tau];
 	//		}
 	//		rem -= (RepDaysCount[tau] * Params::NG_emis_rate * (GV::val_supply[k][tau] - 0));//commented
@@ -620,19 +877,111 @@ void Primal_subproblem(vector<SP>& Cuts)
 	//std::cout << "\t\t Null objective value: " << null_obj << endl;
 #pragma endregion
 
-	//Get_EV_vals(Model);
-	//Print_Results(0, 0);
+
+
+#pragma region Print variables
 	SP sp_new;
+	std::cout << "dual_val_theta1: " << endl;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (sp_new.dual_val_theta1[n][t] > 0.0)
+			{
+				std::cout << sp_new.dual_val_theta1[n][t] << endl;
+			}
+		}
+	}
+	std::cout << "dual_val_theta2: " << endl;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (sp_new.dual_val_theta2[n][t] > 0.0)
+			{
+				std::cout << sp_new.dual_val_theta2[n][t] << endl;
+			}
+		}
+	}
+
+	std::cout << "dual_val_eta1: " << endl;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (sp_new.dual_val_eta1[n][t] > 0.0)
+			{
+				std::cout << sp_new.dual_val_eta1[n][t] << endl;
+			}
+		}
+	}
+	std::cout << "dual_val_eta2: " << endl;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (sp_new.dual_val_eta2[n][t] > 0.0)
+			{
+				std::cout << sp_new.dual_val_eta2[n][t] << endl;
+			}
+		}
+	}
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_theta[n][t] = EV::theta[n][t].get(GRB_DoubleAttr_X);
+			if (EV::val_theta[n][t] > 0.0)
+			{
+				std::cout << EV::theta[n][t].get(GRB_DoubleAttr_X) << endl;
+			}
+		}
+	}
+
+	std::cout << "val_flowE" << endl;
+	for (int b = 0; b < nBr; b++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_flowE[b][t] = EV::flowE[b][t].get(GRB_DoubleAttr_X);
+			if (EV::val_flowE[b][t] > 0)
+			{
+				//std::cout << "flowE[" << b << "][" << t << "] = " << EV::val_flowE[b][t] << endl;
+			}
+		}
+	}
+
+
+	for (int br = 0; br < 10; br++)
+	{
+		int fb = Branches[br].from_bus;
+		int tb = Branches[br].to_bus;
+		for (int t = 0; t < 3; t++)
+		{
+			if (Branches[br].is_exist == 1)
+			{
+				//Model.addConstr(EV::flowE[br][t] >= Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) - eps);
+				//Model.addConstr(-EV::flowE[br][t] >= -Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) - eps);
+				//std::cout << "theta[from]: " << EV::val_theta[fb][t] << "\t theta[to]: " << EV::val_theta[tb][t] << endl;
+				//std::cout << "flowE: " << EV::val_flowE[br][t] << "\t rhs: " << Branches[br].suscep * (EV::val_theta[tb][t] - EV::val_theta[fb][t]) << endl;
+
+			}
+		}
+	}
+#pragma endregion
+
+
 
 	Cuts.push_back(sp_new);
 	Setting::Approach_1_active = true; Setting::Approach_2_active = false;
 }
 
 
+
 void Benders_Decomposition()
 {
 	vector<SP> Cuts;
-	Primal_subproblem(Cuts);
+	//Primal_subproblem(Cuts);
 	//Dual_Subproblem();
 	Master_Problem(Cuts);
 
@@ -704,13 +1053,13 @@ void Master_Problem(vector<SP> Cuts)
 
 	if (Setting::is_xi_given)
 	{
-		cout << "\n\n if xi given" << endl;
+		std::cout << "\n\n if xi given" << endl;
 		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 		Model.addConstr(CV::xi == ex_xi);
 	}
 	else
 	{
-		cout << "else xi given" << endl;
+		std::cout << "else xi given" << endl;
 		Model.addConstr(CV::xi == ex_xi);
 	}
 
@@ -1099,79 +1448,91 @@ void Master_Problem(vector<SP> Cuts)
 #pragma region Add cuts
 	//GRBLinExpr ex_cut(0);
 	ex_cut = 0;
-	int c = 0;  // cut counter
-	//for (int i = 0; i < nPlt; i++)
-	//{
-	//	if (Plants[i].is_exis != 1) { continue; } // only applies to existing plants
-	//	ex_cut -= Plants[i].max_yearly_gen * Cuts[c].dual_val_alpha[i];
-	//}
-
-	for (int n = 0; n < nEnode; n++)
+	for (int c = 0; c < Cuts.size(); c++)
 	{
-		for (int t = 0; t < Te.size(); t++)
+		//for (int i = 0; i < nPlt; i++)
+		//{
+		//	if (Plants[i].is_exis != 1) { continue; } // only applies to existing plants
+		//	ex_cut -= Plants[i].max_yearly_gen * Cuts[c].dual_val_alpha[i];
+		//}
+		double lhs = 0;
+		for (int n = 0; n < nEnode; n++)
 		{
-			GRBLinExpr exp_prod(0);
-			for (int i = 0; i < nPlt; i++)
+			for (int t = 0; t < Te.size(); t++)
 			{
-				exp_prod += EV::prod[n][t][i];
-			}
-			double dem = Enodes[n].demand[Te[t]];
-			GRBLinExpr str(0);
-			for (int r = 0; r < neSt; r++)
-			{
-				str += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
-			}
-			ex_cut += (dem - str - exp_prod - EV::curtE[n][t]) * Cuts[c].dual_val_theta1[n][t];
-			ex_cut -= (dem - str - exp_prod - EV::curtE[n][t]) * Cuts[c].dual_val_theta2[n][t];
+				GRBLinExpr exp_prod(0);
+				for (int i = 0; i < nPlt; i++)
+				{
+					exp_prod += EV::prod[n][t][i];
+				}
+				double dem = Enodes[n].demand[Te[t]];
+				GRBLinExpr str(0);
+				for (int r = 0; r < neSt; r++)
+				{
+					str += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
+				}
 
-			//ex_cut -= dem * SP::dual_val_phi[n][t];
-			//ex_cut += Setting::RPS * time_weight[t] * dem * Cuts[c].dual_val_omega;
+				ex_cut += (dem - str - exp_prod - EV::curtE[n][t]) * Cuts[c].dual_val_theta1[n][t];
+				ex_cut -= (dem - str - exp_prod - EV::curtE[n][t]) * Cuts[c].dual_val_theta2[n][t];
 
-			ex_cut -= pi * SP::dual_val_eta1[n][t];
-			ex_cut -= pi * SP::dual_val_eta2[n][t];
-		}
-	}
-
-	for (int b = 0; b < nBr; b++)
-	{
-		for (int t = 0; t < Te.size(); t++)
-		{
-			if (Branches[b].is_exist == 1)
-			{
-				ex_cut -= Branches[b].maxFlow * Cuts[c].dual_val_delta11[b][t];
-				ex_cut -= Branches[b].maxFlow * Cuts[c].dual_val_delta12[b][t];
-			}
-			else
-			{
-				double Big_M = std::abs(Branches[b].suscep * 24);
-				ex_cut -= Branches[b].maxFlow * EV::Ze[b] * Cuts[c].dual_val_delta21[b][t];
-				ex_cut -= Branches[b].maxFlow * EV::Ze[b] * Cuts[c].dual_val_delta22[b][t];
-				ex_cut += Big_M * (1 - EV::Ze[b]) * Cuts[c].dual_val_zeta11[b][t];
-				ex_cut -= Big_M * (1 - EV::Ze[b]) * Cuts[c].dual_val_zeta12[b][t];
+				ex_cut -= pi * Cuts[c].dual_val_eta1[n][t];
+				ex_cut -= pi * Cuts[c].dual_val_eta2[n][t];
+				lhs += pi * Cuts[c].dual_val_eta1[n][t];
+				lhs += pi * Cuts[c].dual_val_eta2[n][t];
+				if (Cuts[c].dual_val_eta2[n][t] > 0)
+				{
+					std::cout << Cuts[c].dual_val_eta2[n][t] << endl;
+				}
 			}
 		}
-	}
 
-	//double rem = Setting::Emis_lim * Setting::PE;
-	//GRBLinExpr ex_em(0);
-	/*ex_em = Setting::Emis_lim * Setting::PE;
-	for (int k = 0; k < nGnode; k++)
-	{
-		for (int tau = 0; tau < Tg.size(); tau++)
+		for (int b = 0; b < nBr; b++)
 		{
-			GRBLinExpr fge(0);
-			for (int n : Gnodes[k].adjE)
+			for (int t = 0; t < Te.size(); t++)
 			{
-				ex_cut += GV::flowGE[k][n][tau] * Cuts[c].dual_val_rho1[k][n][tau];
-				ex_cut -= GV::flowGE[k][n][tau] * Cuts[c].dual_val_rho2[k][n][tau];
-				fge += GV::flowGE[k][n][tau];
+				if (Branches[b].is_exist == 1)
+				{
+					ex_cut -= Branches[b].maxFlow * Cuts[c].dual_val_delta11[b][t];
+					ex_cut -= Branches[b].maxFlow * Cuts[c].dual_val_delta12[b][t];
+					lhs += Branches[b].maxFlow * Cuts[c].dual_val_delta11[b][t];
+					lhs += Branches[b].maxFlow * Cuts[c].dual_val_delta12[b][t];
+					if (Cuts[c].dual_val_delta12[b][t] > 0)
+					{
+						std::cout << Cuts[c].dual_val_delta12[b][t] << endl;
+					}
+				}
+				else
+				{
+					double Big_M = std::abs(Branches[b].suscep * 24);
+					ex_cut -= Branches[b].maxFlow * EV::Ze[b] * Cuts[c].dual_val_delta21[b][t];
+					ex_cut -= Branches[b].maxFlow * EV::Ze[b] * Cuts[c].dual_val_delta22[b][t];
+					ex_cut += Big_M * (1 - EV::Ze[b]) * Cuts[c].dual_val_zeta11[b][t];
+					ex_cut -= Big_M * (1 - EV::Ze[b]) * Cuts[c].dual_val_zeta12[b][t];
+				}
 			}
-			ex_em -= RepDaysCount[tau] * Params::NG_emis_rate * (GV::supply[k][tau] - fge);
 		}
+
+		//double rem = Setting::Emis_lim * Setting::PE;
+		//GRBLinExpr ex_em(0);
+		/*ex_em = Setting::Emis_lim * Setting::PE;
+		for (int k = 0; k < nGnode; k++)
+		{
+			for (int tau = 0; tau < Tg.size(); tau++)
+			{
+				GRBLinExpr fge(0);
+				for (int n : Gnodes[k].adjE)
+				{
+					ex_cut += GV::flowGE[k][n][tau] * Cuts[c].dual_val_rho1[k][n][tau];
+					ex_cut -= GV::flowGE[k][n][tau] * Cuts[c].dual_val_rho2[k][n][tau];
+					fge += GV::flowGE[k][n][tau];
+				}
+				ex_em -= RepDaysCount[tau] * Params::NG_emis_rate * (GV::supply[k][tau] - fge);
+			}
+		}
+
+		ex_cut -= ex_em * Cuts[c].dual_val_tau;*/
+
 	}
-
-	ex_cut -= ex_em * Cuts[c].dual_val_tau;*/
-
 	Model.addConstr(Chi[0] >= ex_cut);
 	//Model.addConstr(Chi >= SP::SP_Primal_obj);
 #pragma endregion
@@ -1199,16 +1560,16 @@ void Master_Problem(vector<SP> Cuts)
 	auto end = chrono::high_resolution_clock::now();
 	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 	std::cout << "Elapsed time: " << Elapsed << endl;
-	std::cout << "\t Obj Value:" << obj_val << endl;
+	std::cout << "\t MP Obj Value:" << obj_val << endl;
 	std::cout << "\t Gap: " << gap << " Status:" << Model.get(GRB_IntAttr_Status) << endl;
 	std::cout << "\t Chi value = " << Chi[0].get(GRB_DoubleAttr_X) << endl;
 	std::cout << "\t NG emission = " << CV::NG_emis.get(GRB_DoubleAttr_X) << endl;
 	std::cout << "\t E emission = " << CV::E_emis.get(GRB_DoubleAttr_X) << endl;
 #pragma endregion
 
-	//Get_EV_vals(Model);
-	//Get_GV_vals(Model);
-	//Print_Results(0, obj_val);
+	Get_EV_vals(Model);
+	Get_GV_vals(Model);
+	Print_Results(0, obj_val);
 
 #pragma region Get the values of MP variables
 	EV::val_Xop = new double* [nEnode];
@@ -1228,7 +1589,7 @@ void Master_Problem(vector<SP> Cuts)
 			EV::val_Xdec[n][i] = std::round(EV::Xdec[n][i].get(GRB_DoubleAttr_X));
 			if (EV::val_Xop[n][i] > 0)
 			{
-				cout << n << "\t" << i << "\t" << EV::val_Xop[n][i] << endl;
+				std::cout << n << "\t" << i << "\t" << EV::val_Xop[n][i] << endl;
 			}
 		}
 	}
@@ -1300,55 +1661,56 @@ void Master_Problem(vector<SP> Cuts)
 #pragma region Check Chi val
 	double Chi_val = 0;
 
-	c = 0;  // cut counter
-   //for (int i = 0; i < nPlt; i++)
-   //{
-   //	if (Plants[i].is_exis != 1) { continue; } // only applies to existing plants
-   //	Chi_val -= Plants[i].max_yearly_gen * Cuts[c].dual_val_alpha[i];
-   //}
-
-	for (int n = 0; n < nEnode; n++)
+	for (int c = 0; c < Cuts.size(); c++)
 	{
-		for (int t = 0; t < Te.size(); t++)
-		{
-			double exp_prod = 0;
-			for (int i = 0; i < nPlt; i++)
-			{
-				exp_prod += EV::val_prod[n][t][i];
-			}
-			double dem = Enodes[n].demand[Te[t]];
-			double str = 0;
-			for (int r = 0; r < neSt; r++)
-			{
-				str += EV::val_eSdis[n][t][r] - EV::val_eSch[n][t][r];
-			}
-			Chi_val += (dem - str - exp_prod - EV::val_curtE[n][t]) * Cuts[c].dual_val_theta1[n][t];
-			Chi_val -= (dem - str - exp_prod - EV::val_curtE[n][t]) * Cuts[c].dual_val_theta2[n][t];
-			Chi_val -= pi * SP::dual_val_eta1[n][t];
-			Chi_val -= pi * SP::dual_val_eta2[n][t];
-		}
-	}
+		//for (int i = 0; i < nPlt; i++)
+		//{
+		//	if (Plants[i].is_exis != 1) { continue; } // only applies to existing plants
+		//	Chi_val -= Plants[i].max_yearly_gen * Cuts[c].dual_val_alpha[i];
+		//}
 
-	for (int b = 0; b < nBr; b++)
-	{
-		for (int t = 0; t < Te.size(); t++)
+		for (int n = 0; n < nEnode; n++)
 		{
-			if (Branches[b].is_exist == 1)
+			for (int t = 0; t < Te.size(); t++)
 			{
-				Chi_val -= Branches[b].maxFlow * Cuts[c].dual_val_delta11[b][t];
-				Chi_val -= Branches[b].maxFlow * Cuts[c].dual_val_delta12[b][t];
-			}
-			else
-			{
-				double Big_M = std::abs(Branches[b].suscep * 24);
-				Chi_val -= Branches[b].maxFlow * EV::val_Ze[b] * Cuts[c].dual_val_delta21[b][t];
-				Chi_val -= Branches[b].maxFlow * EV::val_Ze[b] * Cuts[c].dual_val_delta22[b][t];
-				Chi_val += Big_M * (1 - EV::val_Ze[b]) * Cuts[c].dual_val_zeta11[b][t];
-				Chi_val -= Big_M * (1 - EV::val_Ze[b]) * Cuts[c].dual_val_zeta12[b][t];
+				double exp_prod = 0;
+				for (int i = 0; i < nPlt; i++)
+				{
+					exp_prod += EV::val_prod[n][t][i];
+				}
+				double dem = Enodes[n].demand[Te[t]];
+				double str = 0;
+				for (int r = 0; r < neSt; r++)
+				{
+					str += EV::val_eSdis[n][t][r] - EV::val_eSch[n][t][r];
+				}
+				Chi_val += (dem - str - exp_prod - EV::val_curtE[n][t]) * Cuts[c].dual_val_theta1[n][t];
+				Chi_val -= (dem - str - exp_prod - EV::val_curtE[n][t]) * Cuts[c].dual_val_theta2[n][t];
+				Chi_val -= pi * SP::dual_val_eta1[n][t];
+				Chi_val -= pi * SP::dual_val_eta2[n][t];
 			}
 		}
-	}
 
+		for (int b = 0; b < nBr; b++)
+		{
+			for (int t = 0; t < Te.size(); t++)
+			{
+				if (Branches[b].is_exist == 1)
+				{
+					Chi_val -= Branches[b].maxFlow * Cuts[c].dual_val_delta11[b][t];
+					Chi_val -= Branches[b].maxFlow * Cuts[c].dual_val_delta12[b][t];
+				}
+				else
+				{
+					double Big_M = std::abs(Branches[b].suscep * 24);
+					Chi_val -= Branches[b].maxFlow * EV::val_Ze[b] * Cuts[c].dual_val_delta21[b][t];
+					Chi_val -= Branches[b].maxFlow * EV::val_Ze[b] * Cuts[c].dual_val_delta22[b][t];
+					Chi_val += Big_M * (1 - EV::val_Ze[b]) * Cuts[c].dual_val_zeta11[b][t];
+					Chi_val -= Big_M * (1 - EV::val_Ze[b]) * Cuts[c].dual_val_zeta12[b][t];
+				}
+			}
+		}
+	}
 	std::cout << "Chi rhs: " << Chi_val << endl;
 #pragma endregion
 
@@ -1624,7 +1986,7 @@ void Dual_Subproblem()
 
 	Model.setObjective(ex0, GRB_MAXIMIZE);
 	//Model.addConstr(ex0 == 9.68247e+08);
-	Model.addConstr(ex0 <= 10e12);
+	Model.addConstr(ex0 <= 0);
 #pragma endregion
 
 
@@ -1756,13 +2118,17 @@ void Dual_Subproblem()
 			GRBLinExpr ex_fe(0);
 			if (Branches[b].is_exist == 1)
 			{
-				ex_fe -= SP::delta11[b][t] - SP::delta12[b][t];
-				ex_fe += SP::zeta21[b][t] - SP::zeta22[b][t];
+				ex_fe -= SP::delta11[b][t];
+				ex_fe += SP::delta12[b][t];
+				ex_fe -= SP::zeta22[b][t];
+				ex_fe += SP::zeta21[b][t];
 			}
 			else
 			{
-				ex_fe -= SP::delta21[b][t] - SP::delta22[b][t];
-				ex_fe += SP::zeta11[b][t] - SP::zeta12[b][t];
+				ex_fe -= SP::delta21[b][t];
+				ex_fe += SP::delta22[b][t];
+				ex_fe += SP::zeta11[b][t];
+				ex_fe -= SP::zeta12[b][t];
 			}
 			/*if (Branches[b].from_bus > Branches[b].to_bus)
 			{
@@ -1773,7 +2139,7 @@ void Dual_Subproblem()
 				ex_fe += SP::theta[Branches[b].from_bus][t];
 			}*/
 			ex_fe += (SP::theta1[Branches[b].from_bus][t] - SP::theta1[Branches[b].to_bus][t]);
-			ex_fe -= (SP::theta1[Branches[b].from_bus][t] - SP::theta1[Branches[b].to_bus][t]);
+			ex_fe -= (SP::theta2[Branches[b].from_bus][t] - SP::theta2[Branches[b].to_bus][t]);
 			//std::cout << "from bus: " << Branches[b].from_bus << " \t to bus: " << Branches[b].to_bus << endl;
 			Model.addConstr(ex_fe == 0);
 			//Model.addConstr(-ex_fe <= 1e-3);
@@ -1935,22 +2301,27 @@ void Dual_Subproblem()
 	//}
 
 
-	////theta
-	//for (int n = 0; n < nEnode; n++)
-	//{
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > 10)
-	//		{
-	//			break;
-	//		}
-	//		double theta = SP::theta[n][t].get(GRB_DoubleAttr_X);
-	//		if (theta > 0.001 || theta < -0.001)
-	//		{
-	//			std::cout << "theta[" << n << "][" << t << "] = " << theta << endl;
-	//		}
-	//	}
-	//}
+	//theta
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (t > 10)
+			{
+				break;
+			}
+			double theta = SP::theta1[n][t].get(GRB_DoubleAttr_X);
+			if (theta > 0.001 || theta < -0.001)
+			{
+				std::cout << "theta1[" << n << "][" << t << "] = " << theta << endl;
+			}
+			theta = SP::theta2[n][t].get(GRB_DoubleAttr_X);
+			if (theta > 0.001 || theta < -0.001)
+			{
+				std::cout << "theta2[" << n << "][" << t << "] = " << theta << endl;
+			}
+		}
+	}
 
 	////// alpha from primal subproblem
 	////for (int i = 0; i < nPlt; i++)
@@ -1958,7 +2329,7 @@ void Dual_Subproblem()
 	////	double alpha = EV::dual_val_alpha[i];
 	////	if (alpha < -0.001 || alpha>0.001)
 	////	{
-	////		cout << "PSP_alpha[" << i << "] = " << alpha << endl;
+	////		std::cout << "PSP_alpha[" << i << "] = " << alpha << endl;
 	////	}
 	////}
 
@@ -2058,102 +2429,100 @@ void Dual_Subproblem()
 	//}
 
 	//// delta
-	//for (int b = 0; b < nBr; b++)
-	//{
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > 10)
-	//		{
-	//			//break;
-	//		}
-	//		double dz = SP::delta11[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "delta11[" << b << "][" << t << "] = " << dz << endl;
-	//		}
+	for (int b = 0; b < nBr; b++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (t > 10)
+			{
+				//break;
+			}
+			double dz = SP::delta11[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "delta11[" << b << "][" << t << "] = " << dz << endl;
+			}
+			dz = SP::delta12[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "delta12[" << b << "][" << t << "] = " << dz << endl;
+			}
 
+			dz = SP::delta21[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "delta21[" << b << "][" << t << "] = " << dz << endl;
+			}
 
-	//		dz = SP::delta12[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "delta12[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-
-	//		dz = SP::delta21[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "delta21[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-
-	//		dz = SP::delta22[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "delta22[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-	//	}
-	//}
+			dz = SP::delta22[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "delta22[" << b << "][" << t << "] = " << dz << endl;
+			}
+		}
+	}
 
 	////zeta
-	//for (int b = 0; b < nBr; b++)
-	//{
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > 10)
-	//		{
-	//			//break;
-	//		}
-	//		double dz = SP::zeta11[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "zeta11[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-	//		dz = SP::zeta12[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "zeta12[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-	//		dz = SP::zeta21[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "zeta21[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-	//		dz = SP::zeta22[b][t].get(GRB_DoubleAttr_X);
-	//		if (dz < -0.001 || dz>0.001)
-	//		{
-	//			std::cout << "zeta22[" << b << "][" << t << "] = " << dz << endl;
-	//		}
-	//	}
-	//}
+	for (int b = 0; b < nBr; b++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (t > 10)
+			{
+				//break;
+			}
+			double dz = SP::zeta11[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "zeta11[" << b << "][" << t << "] = " << dz << endl;
+			}
+			dz = SP::zeta12[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "zeta12[" << b << "][" << t << "] = " << dz << endl;
+			}
+			dz = SP::zeta21[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "zeta21[" << b << "][" << t << "] = " << dz << endl;
+			}
+			dz = SP::zeta22[b][t].get(GRB_DoubleAttr_X);
+			if (dz < -0.001 || dz>0.001)
+			{
+				std::cout << "zeta22[" << b << "][" << t << "] = " << dz << endl;
+			}
+		}
+	}
 
 
-	////eta
-	//for (int n = 0; n < nEnode; n++)
-	//{
-	//	for (int t = 0; t < Te.size(); t++)
-	//	{
-	//		if (t > 10)
-	//		{
-	//			//break;
-	//		}
-	//		double eta = SP::eta1[n][t].get(GRB_DoubleAttr_X);
-	//		if (eta < -0.001 || eta>0.001)
-	//		{
-	//			std::cout << "eta1[" << n << "][" << t << "] = " << eta << endl;
-	//		}
+	//eta
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (t > 10)
+			{
+				//break;
+			}
+			double eta = SP::eta1[n][t].get(GRB_DoubleAttr_X);
+			if (eta < -0.001 || eta>0.001)
+			{
+				std::cout << "eta1[" << n << "][" << t << "] = " << eta << endl;
+			}
 
-	//		eta = SP::eta2[n][t].get(GRB_DoubleAttr_X);
-	//		if (eta < -0.001 || eta>0.001)
-	//		{
-	//			std::cout << "eta1[" << n << "][" << t << "] = " << eta << endl;
-	//		}
+			eta = SP::eta2[n][t].get(GRB_DoubleAttr_X);
+			if (eta < -0.001 || eta>0.001)
+			{
+				std::cout << "eta1[" << n << "][" << t << "] = " << eta << endl;
+			}
 
-	//		eta = SP::eta3[n].get(GRB_DoubleAttr_X);
-	//		if (eta < -0.001 || eta>0.001)
-	//		{
-	//			std::cout << "eta1[" << n << "][" << t << "] = " << eta << endl;
-	//		}
-	//	}
-	//}
+			eta = SP::eta3[n].get(GRB_DoubleAttr_X);
+			if (eta < -0.001 || eta>0.001)
+			{
+				std::cout << "eta1[" << n << "][" << t << "] = " << eta << endl;
+			}
+		}
+	}
 
 	////rho
 

@@ -45,7 +45,7 @@ double* EV::val_num_decom = new double[Params::Plants.size()](); // number of pl
 double  EV::val_total_curt; // total load shedding
 double  EV::val_num_est_trans; // number of new transmission lines established
 double  EV::val_total_flow; // total flow in the E network
-double**  EV::val_flowE; 
+double** EV::val_flowE;
 double* EV::val_total_prod = new double[Params::Plants.size()](); // total production	
 double EV::val_dfo_coal_emis_cost;
 double** EV::val_Xop;
@@ -572,7 +572,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
-			//Model.addConstr(EV::Xop[n][i] == 0);
+			Model.addConstr(EV::Xop[n][i] == 0);
 
 			/*if (Plants[i].type!="hydro" )
 			{
