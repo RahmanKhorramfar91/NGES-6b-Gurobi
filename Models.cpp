@@ -154,7 +154,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	return 0;
 }
 
-void Electricy_Network_Model()
+void Electricy_Network_Model(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 
@@ -167,8 +167,8 @@ void Electricy_Network_Model()
 	}
 #pragma endregion
 
-	GRBEnv* env = 0;
-	env = new GRBEnv();
+	/*GRBEnv* env = 0;
+	env = new GRBEnv();*/
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
 	Populate_EV_SP(Model);	Populate_GV(Model);
@@ -228,12 +228,12 @@ void Electricy_Network_Model()
 
 }
 
-void NG_Network_Model()
+void NG_Network_Model(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 
-	GRBEnv* env = 0;
-	env = new GRBEnv();
+	/*GRBEnv* env = 0;
+	env = new GRBEnv();*/
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_NGobj(0);
 
@@ -275,7 +275,7 @@ void NG_Network_Model()
 	Get_GV_vals(Model);
 }
 
-double Integrated_Model()
+double Integrated_Model(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 	 
@@ -287,8 +287,8 @@ double Integrated_Model()
 		elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
 	}
 #pragma endregion
-	GRBEnv* env = 0;
-	env = new GRBEnv();
+	/*GRBEnv* env = 0;
+	env = new GRBEnv();*/
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_NGobj(0);
 	GRBLinExpr exp_Eobj(0);
@@ -357,13 +357,12 @@ double Integrated_Model()
 		}
 	}
 
-
-
-
 #pragma region Solve the model
+	//Model.set(GRB_IntParam_OutputFlag, 0);
 	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
 	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
 	//Model.set(GRB_IntParam_DualReductions, 0);
+
 	Model.optimize();
 	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
 	{
@@ -402,12 +401,12 @@ double Integrated_Model()
 	return obj_val;
 }
 
-double DESP()
+double DESP(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 
-	GRBEnv* env = 0;
-	env = new GRBEnv();
+	//GRBEnv* env = 0;
+	//env = new GRBEnv();
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
 	Populate_EV_SP(Model); Populate_GV(Model);
@@ -458,12 +457,12 @@ double DESP()
 	return obj_val;
 }
 
-double DGSP()
+double DGSP(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 
-	GRBEnv* env = 0;
-	env = new GRBEnv();
+	/*GRBEnv* env = 0;
+	env = new GRBEnv();*/
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_NGobj(0);
 	Populate_GV(Model);

@@ -25,10 +25,12 @@ GRBVar EV::elec_storage_cost;
 GRBVar EV::Emit_var;
 GRBVar EV::e_system_cost;
 GRBVar EV::dfo_coal_emis_cost;
+GRBVar EV::est_trans_cost;
 
 
 double*** EV::val_prod;
 double EV::val_est_cost;
+double EV::val_est_trans_cost;
 double EV::val_decom_cost;
 double EV::val_fixed_cost;
 double EV::val_var_cost;
@@ -139,18 +141,18 @@ GRBConstr** SP::d_eta2;
 //double*** SP::dual_val_beta;
 //double*** SP::dual_val_gamma1;
 //double*** SP::dual_val_gamma2;
-double** SP::dual_val_delta11;
-double** SP::dual_val_delta12;
-double** SP::dual_val_delta21;
-double** SP::dual_val_delta22;
-double** SP::dual_val_theta1;
-double** SP::dual_val_theta2;
-double** SP::dual_val_zeta11;
-double** SP::dual_val_zeta12;
-double** SP::dual_val_zeta21;
-double** SP::dual_val_zeta22;
-double** SP::dual_val_eta1;
-double** SP::dual_val_eta2;
+//double** SP::dual_val_delta11;
+//double** SP::dual_val_delta12;
+//double** SP::dual_val_delta21;
+//double** SP::dual_val_delta22;
+//double** SP::dual_val_theta1;
+//double** SP::dual_val_theta2;
+//double** SP::dual_val_zeta11;
+//double** SP::dual_val_zeta12;
+//double** SP::dual_val_zeta21;
+//double** SP::dual_val_zeta22;
+//double** SP::dual_val_eta1;
+//double** SP::dual_val_eta2;
 //double*** SP::dual_val_pi;
 //double** SP::dual_val_phi;
 //double SP::dual_val_omega;
@@ -376,6 +378,7 @@ void  Populate_EV_SP(GRBModel& Model)
 		}
 	}
 	EV::est_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+	EV::est_trans_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::decom_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::fixed_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::var_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
@@ -572,36 +575,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	{
 		for (int i = 0; i < nPlt; i++)
 		{
-			Model.addConstr(EV::Xop[n][i] == 0);
-
-			/*if (Plants[i].type!="hydro" )
-			{
-				Model.addConstr(EV::Xop[n][i] == 0); Model.addConstr(EV::Xest[n][i] == 0);
-			}*/
-			//if (Plants[i].type == "solar" || Plants[i].type == "solar-UPV")
-			//{
-			//	Model.addConstr(EV::Xop[n][i] == 0);
-			//}
-			//
-			//if (Plants[i].type == "wind" || Plants[i].type == "wind-new")
-			//{
-			//	Model.addConstr(EV::Xop[n][i] == 0);
-			//}
-			//if (Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new")
-			//{
-			//	Model.addConstr(EV::Xop[n][i] == 0);
-			//}
-			//if (Plants[i].type == "ng"|| Plants[i].type == "nuclear")
-			//{
-			//	Model.addConstr(EV::Xop[n][i] == 0);
-			//}
-			//if (Plants[i].type == "hydro")
-			//{
-			//	Model.addConstr(EV::Xop[n][i] == 0);
-			//}
-			//// do not allow establishment off-shore wind and hydro plants
-			//Model.addConstr(EV::Xdec[n][5] == 0);
-
 			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
 				Plants[i].type == "wind_offshore")
 			{
@@ -641,16 +614,27 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	}
 
 
-
-	// set flow to zero 
-	/*for (int b = 0; b < nBr; b++)
+	if (Setting::fix_some_E_NG_vars == true)
 	{
-		Model.addConstr(EV::Ze[b] == 0);
-		for (int t = 0; t < Te.size(); t++)
+		for (int n = 0; n < nEnode; n++)
 		{
-			Model.addConstr(EV::flowE[b][t] == 0);
+			for (int i = 0; i < nPlt; i++)
+			{
+				Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
+				Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
+				Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
+				for (int t = 0; t < Te.size(); t++)
+				{
+					//Model.addConstr(EV::prod[n][t][i] == EV::val_prod[n][t][i]);
+				}
+			}
 		}
-	}*/
+
+		for (int b = 0; b < nBr; b++)
+		{
+			//Model.addConstr(EV::Ze[b] == EV::val_Ze[b]);
+		}
+	}
 #pragma endregion
 
 
@@ -761,6 +745,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	exp_Eobj = ex_est + ex_decom + ex_fix + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
 
 	Model.addConstr(EV::est_cost == ex_est);
+	Model.addConstr(EV::est_trans_cost == ex_trans);
 	Model.addConstr(EV::decom_cost == ex_decom);
 	Model.addConstr(EV::fixed_cost == ex_fix);
 	Model.addConstr(EV::var_cost == ex_var);
@@ -773,8 +758,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma endregion
 
 #pragma region Electricity Network Constraints
-	// C1, C2: number of generation units at each node	
-	int existP = 0;
+	// C1, C2: number of generation units at each node		
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
@@ -834,6 +818,9 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		}
 		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
 	}
+
+
+
 
 
 
@@ -912,12 +899,13 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
 			}
 			double dem = Enodes[n].demand[Te[t]];
-			//dem = dem/1.896;
+			
+			
 			// ignore trans
 			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
 			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
 
-			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem);
+			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem); //uncomment this line
 		}
 	}
 	// C8: flow equation
@@ -931,14 +919,14 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			//if (Branches[br].is_exist == 1 && !Setting::heuristics1_active)
 			if (Branches[br].is_exist == 1)
 			{
-				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2);
-				Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-2);
+				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) == 0);
+				//Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-4);
 				//Model.addConstr(-1e-2 <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
 			}
 			//else if (!Setting::heuristics1_active)
 			else
 			{
-				double Big_M = std::abs(Branches[br].suscep * 24000);
+				double Big_M = std::abs(Branches[br].suscep * 24);
 				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= Big_M * (1 - EV::Ze[br]));
 				Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= Big_M * (1 - EV::Ze[br]));
 				//Model.addConstr(-Big_M * (1 - EV::Ze[br]) <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
@@ -949,13 +937,18 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	// C9: phase angle (theta) limits. already applied in the definition of the variable
 	for (int n = 0; n < nEnode; n++)
 	{
-		Model.addConstr(EV::theta[n][0] == 0);
 		for (int t = 1; t < Te.size(); t++)
 		{
 			Model.addConstr(EV::theta[n][t] <= pi);
 			Model.addConstr(-EV::theta[n][t] <= pi);
 			//Model.addConstr(-pi <= EV::theta[n][t]);
 		}
+	}
+
+	// C9.5: phase angle for reference node (node 0) is zero
+	for (int t = 0; t < Te.size(); t++)
+	{
+		Model.addConstr(EV::theta[0][t] == 0);
 	}
 
 	// C10: VRE production profile
@@ -1120,7 +1113,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			//dem = dem/1.896;
 			// ignore trans
 			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
-			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] >= dem);
+			//Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] >= dem);
 		}
 	}
 #pragma endregion
@@ -1152,9 +1145,6 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma endregion
 
 }
-
-
-
 
 void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 {
@@ -1194,6 +1184,25 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 	map<int, vector<int>> Lg = Params::Lg;
 	vector<int> RepDaysCount = Params::RepDaysCount;
 #pragma endregion
+
+#pragma region fix some variables
+	if (Setting::fix_some_E_NG_vars == true)
+	{
+		for (int l = 0; l < nPipe; l++)
+		{
+			//Model.addConstr(GV::Zg[l] == GV::val_Zg[l]);
+		}
+
+		for (int n = 0; n < nGnode; n++)
+		{
+			for (int t = 0; t < Tg.size(); t++)
+			{
+				//Model.addConstr(GV::supply[n][t] == GV::val_supply[n][t]);
+			}
+		}
+	}
+#pragma endregion
+
 
 #pragma region NG network related costs
 	//	GRBLinExpr exp_GVobj(env);

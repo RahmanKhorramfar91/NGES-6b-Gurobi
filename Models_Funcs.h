@@ -2,17 +2,17 @@
 #include"ProblemData.h"
 #include "gurobi_c++.h"
 
-void Electricy_Network_Model();
+void Electricy_Network_Model(GRBEnv* env);
 double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_gap);
-void NG_Network_Model();
+void NG_Network_Model(GRBEnv* env);
 
 
 
 
-double Integrated_Model();
+double Integrated_Model(GRBEnv* env);
 
-double DGSP();
-double DESP();
+double DGSP(GRBEnv* env);
+double DESP(GRBEnv* env);
 
 
 void Read_rep_days(string name, vector<int>& Rep, vector<int>& RepCount);
@@ -23,8 +23,6 @@ void Populate_GV(GRBModel& Model);
 void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj);
 
 void Populate_GV(GRBModel& Model);
-
-
 
 void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_emis, GRBLinExpr& ex_E_emis);
 
@@ -42,6 +40,9 @@ struct Setting
 	static bool print_results_header;
 	static bool heuristics1_active;
 	static bool warm_start_active;
+	static bool print_all_vars;
+	static bool fix_some_E_NG_vars;
+	static bool use_benders;
 
 	static bool is_xi_given;
 	static double xi_val;
@@ -60,7 +61,7 @@ struct Setting
 	static bool DGSP_active;
 	static bool DESP_active;
 	static double RNG_cap;
-	static bool print_all_vars;
+
 
 	static double PGC;
 	static double PE;
@@ -68,29 +69,30 @@ struct Setting
 
 struct EV
 {
-	static 	GRBVar** Xest; // integer (continues) for plants
-	static	GRBVar** Xdec; // integer (continues) for plants
-	static	GRBVar** YeCD; // continuous: charge/discharge capacity
-	static	GRBVar** YeLev; // continuous: charge/discharge level
+	static GRBVar** Xest; // integer (continues) for plants
+	static GRBVar** Xdec; // integer (continues) for plants
+	static GRBVar** YeCD; // continuous: charge/discharge capacity
+	static GRBVar** YeLev; // continuous: charge/discharge level
 	static GRBVar** YeStr; //
-	static	GRBVar* Ze;// binary
-	static	GRBVar** theta; // continuous phase angle
-	static	GRBVar** curtE; // continuous curtailment variable
-	static	GRBVar*** prod;// continuous
-	static	GRBVar*** eSch;// power charge to storage 
-	static	GRBVar*** eSdis;// power discharge to storage
-	static	GRBVar*** eSlev;// power level at storage
-	static	GRBVar** Xop; // integer (continues)
-	static	GRBVar** flowE; // flowE subscripts are "ntm" here
-	static	GRBVar est_cost; // cost of establishments
-	static	GRBVar decom_cost;
-	static	GRBVar fixed_cost;
-	static	GRBVar var_cost;
-	static	GRBVar thermal_fuel_cost;
-	static	GRBVar shedding_cost;
-	static	GRBVar elec_storage_cost;
-	static	GRBVar Emit_var;
-	static	GRBVar dfo_coal_emis_cost;
+	static GRBVar* Ze;// binary
+	static GRBVar** theta; // continuous phase angle
+	static GRBVar** curtE; // continuous curtailment variable
+	static GRBVar*** prod;// continuous
+	static GRBVar*** eSch;// power charge to storage 
+	static GRBVar*** eSdis;// power discharge to storage
+	static GRBVar*** eSlev;// power level at storage
+	static GRBVar** Xop; // integer (continues)
+	static GRBVar** flowE; // flowE subscripts are "ntm" here
+	static GRBVar est_cost; // cost of establishing new plants
+	static GRBVar est_trans_cost; // cost of establishing new transmission lines
+	static GRBVar decom_cost;
+	static GRBVar fixed_cost;
+	static GRBVar var_cost;
+	static GRBVar thermal_fuel_cost;
+	static GRBVar shedding_cost;
+	static GRBVar elec_storage_cost;
+	static GRBVar Emit_var;
+	static GRBVar dfo_coal_emis_cost;
 	static GRBVar e_system_cost;
 
 
@@ -99,6 +101,7 @@ struct EV
 	static double*** val_eSch;
 	static double*** val_eSdis;
 	static	double val_est_cost;
+	static	double val_est_trans_cost;
 	static	double val_decom_cost;
 	static	double val_fixed_cost;
 	static	double val_var_cost;
@@ -224,18 +227,18 @@ struct SP
 	static double*** dual_val_beta;
 	static double*** dual_val_gamma1;
 	static double*** dual_val_gamma2;*/
-	static double** dual_val_delta11;
-	static double** dual_val_delta12;
-	static double** dual_val_delta21;
-	static double** dual_val_delta22;
-	static double** dual_val_theta1;
-	static double** dual_val_theta2;
-	static double** dual_val_zeta11;
-	static double** dual_val_zeta12;
-	static double** dual_val_zeta21;
-	static double** dual_val_zeta22;
-	static double** dual_val_eta1;
-	static double** dual_val_eta2;
+	double** dual_val_delta11;
+	double** dual_val_delta12;
+	double** dual_val_delta21;
+	double** dual_val_delta22;
+	double** dual_val_theta1;
+	double** dual_val_theta2;
+	double** dual_val_zeta11;
+	double** dual_val_zeta12;
+	double** dual_val_zeta21;
+	double** dual_val_zeta22;
+	double** dual_val_eta1;
+	double** dual_val_eta2;
 	//static double*** dual_val_pi;
 	//static double** dual_val_phi;
 	//static double dual_val_omega;
@@ -273,10 +276,10 @@ struct SP
 	//static GRBVar** phi;
 	//static GRBVar omega;
 };
-void Primal_subproblem(vector<SP>& Cust);
-void Master_Problem(vector<SP> Cuts);
-void Benders_Decomposition();
-void Dual_Subproblem();
+int Primal_subproblem(vector<SP>& Cuts);// return status
+double Master_Problem(vector<SP> Cuts, GRBEnv* env);
+void Benders_Decomposition(GRBEnv* env);
+double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env);
 void SP_flow_Upper();
 
 

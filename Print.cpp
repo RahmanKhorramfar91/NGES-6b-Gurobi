@@ -35,14 +35,14 @@ void Get_EV_vals(GRBModel Model)
 			}
 			//EV::dual_val_theta[n][t] = EV::d_theta[n][t].get(GRB_DoubleAttr_Pi);
 			//EV::dual_val_phi[n][t] = EV::d_phi[n][t].get(GRB_DoubleAttr_Pi);
-			ave_price += SP::dual_val_theta1[n][t];
+			//ave_price += SP::dual_val_theta1[n][t];
 			/*if (EV::val_PB[n][t]>0)
 			{
 				cout << "PB[" << n << "][" << t << "] = " << EV::val_PB[n][t] << endl;
 			}*/
 		}
-		ave_price = ave_price / Te.size();
-		cout << "NG price at node \t" << n << ": \t" << ave_price << endl;
+		//ave_price = ave_price / Te.size();
+		//cout << "NG price at node \t" << n << ": \t" << ave_price << endl;
 	}
 #pragma endregion
 
@@ -59,6 +59,7 @@ void Get_EV_vals(GRBModel Model)
 		fid.open("DVe.txt");
 	}*/
 	EV::val_est_cost = EV::est_cost.get(GRB_DoubleAttr_X);
+	EV::val_est_trans_cost = EV::est_trans_cost.get(GRB_DoubleAttr_X);
 	EV::val_decom_cost = EV::decom_cost.get(GRB_DoubleAttr_X);
 	EV::val_fixed_cost = EV::fixed_cost.get(GRB_DoubleAttr_X);
 	EV::val_var_cost = EV::var_cost.get(GRB_DoubleAttr_X);
@@ -162,6 +163,7 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 	EV::val_Ze = new double[nBr]();
+	EV::val_num_est_trans = 0;
 	for (int b = 0; b < nBr; b++)
 	{
 		EV::val_num_est_trans += EV::Ze[b].get(GRB_DoubleAttr_X);
@@ -188,11 +190,12 @@ void Get_EV_vals(GRBModel Model)
 			EV::val_prod[n][t] = new double[nPlt]();
 			for (int i = 0; i < nPlt; i++)
 			{
+				/*
 				if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
 				{
 					double s1 = time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 					flowGE += s1 * Plants[i].heat_rate;
-				}
+				}*/
 				EV::val_total_prod[i] += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				total_yearly_prod += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				EV::val_prod[n][t][i] = EV::prod[n][t][i].get(GRB_DoubleAttr_X);
@@ -204,7 +207,7 @@ void Get_EV_vals(GRBModel Model)
 			}
 		}
 	}
-	for (int i = 0; i < nPlt; i++)
+	/*for (int i = 0; i < nPlt; i++)
 	{
 		if (EV::val_total_prod[i] > 10)
 		{
@@ -213,7 +216,7 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 
-	cout << "\t\t total yearly product: " << total_yearly_prod << endl;
+	cout << "\t\t total yearly product: " << total_yearly_prod << endl;*/
 	EV::val_curtE = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
@@ -231,7 +234,7 @@ void Get_EV_vals(GRBModel Model)
 			//}
 		}
 	}
-	 
+
 	EV::val_theta = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
@@ -245,6 +248,7 @@ void Get_EV_vals(GRBModel Model)
 
 	// Storage variables
 	double** YeCDs = new double* [nEnode];
+	EV::val_storage_cap = 0;
 	for (int n = 0; n < nEnode; n++)
 	{
 		YeCDs[n] = new double[neSt]();
@@ -259,6 +263,7 @@ void Get_EV_vals(GRBModel Model)
 		}
 	}
 	double** YeLevs = new double* [nEnode];
+	EV::val_storage_lev = 0;
 	for (int n = 0; n < nEnode; n++)
 	{
 		YeLevs[n] = new double[neSt]();
@@ -268,12 +273,13 @@ void Get_EV_vals(GRBModel Model)
 			YeLevs[n][r] = EV::YeLev[n][r].get(GRB_DoubleAttr_X);
 			/*if (YeLevs[n][r] > 10e-3)
 			{
-				fid << "Ye_lev[" << n << "][" << r << "] = " << YeLevs[n][r] << endl;
+				std::cout << "Ye_lev[" << n << "][" << r << "] = " << YeLevs[n][r] << endl;
 			}*/
 		}
 	}
 
 	EV::val_YeStr = new double* [nEnode];
+	EV::val_num_storage = 0;
 	for (int n = 0; n < nEnode; n++)
 	{
 		EV::val_YeStr[n] = new double[neSt]();
@@ -282,9 +288,9 @@ void Get_EV_vals(GRBModel Model)
 			EV::val_num_storage += EV::YeStr[n][r].get(GRB_DoubleAttr_X);
 			EV::val_YeStr[n][r] = EV::YeStr[n][r].get(GRB_DoubleAttr_X);
 			//YeStr[n][r] = EV::YeStr[n][r]);
-			/*if (YeStr[n][r] > 10e-3)
+			/*if (EV::val_YeStr[n][r] > 10e-3)
 			{
-				fid << "Ye_Str[" << n << "][" << r << "] = " << YeStr[n][r] << endl;
+				std::cout << "Ye_Str[" << n << "][" << r << "] = " << EV::val_YeStr[n][r] << endl;
 			}*/
 		}
 	}
@@ -445,6 +451,7 @@ void Get_GV_vals(GRBModel Model)
 	}
 	//	fid2 << endl;
 	//GV::val_g_curt = new double[nGnode]();
+	GV::val_ng_curt = 0; GV::val_rng_curt = 0;
 	for (int k = 0; k < nGnode; k++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -458,7 +465,7 @@ void Get_GV_vals(GRBModel Model)
 		}
 	}
 	//fid2 << endl;
-	GV::val_Zg = new double[nPipe]();
+	GV::val_Zg = new double[nPipe](); GV::val_num_est_pipe = 0;
 	for (int i = 0; i < nPipe; i++)
 	{
 		GV::val_num_est_pipe += GV::Zg[i].get(GRB_DoubleAttr_X);
@@ -469,6 +476,7 @@ void Get_GV_vals(GRBModel Model)
 		}*/
 	}
 	//fid2 << endl;
+	GV::val_total_flowGG = 0;
 	for (int i = 0; i < nPipe; i++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -482,6 +490,7 @@ void Get_GV_vals(GRBModel Model)
 	}
 	//fid2 << endl;
 	GV::val_flowGE = new double** [nGnode];
+	GV::val_total_flowGE = 0;
 	for (int k = 0; k < nGnode; k++)
 	{
 		GV::val_flowGE[k] = new double* [nEnode];
@@ -501,6 +510,7 @@ void Get_GV_vals(GRBModel Model)
 	}
 
 	////fid2 << endl;
+	GV::val_total_flowGL = 0;
 	for (int k = 0; k < nGnode; k++)
 	{
 		for (int kp : Gnodes[k].adjS)
@@ -516,6 +526,7 @@ void Get_GV_vals(GRBModel Model)
 		}
 	}
 	//fid2 << endl;
+	GV::val_total_flowVG = 0;
 	for (int k = 0; k < nGnode; k++)
 	{
 		for (int kp : Gnodes[k].adjS)
@@ -746,7 +757,8 @@ void Print_Results(double Elapsed_time, double status)
 
 		// electricity
 		fid << "Total_E_cost" << ",";
-		fid << "Est_cost" << ",";
+		fid << "Est_plant_cost" << ",";
+		fid << "Est_trans_cost" << ",";
 		fid << "Decom_cost" << ",";
 		fid << "Fixed_cost" << ",";
 		fid << "Variable_cost" << ",";
@@ -820,6 +832,7 @@ void Print_Results(double Elapsed_time, double status)
 	fid << EV::MIP_gap << ",";
 	fid << EV::val_e_system_cost << ",";
 	fid << EV::val_est_cost << ",";
+	fid << EV::val_est_trans_cost << ",";
 	fid << EV::val_decom_cost << ",";
 	fid << EV::val_fixed_cost << ",";
 	fid << EV::val_var_cost << ",";
@@ -905,7 +918,8 @@ void Print_Results(double Elapsed_time, double status)
 	fid2 << "\t Total cost for both networks:" << EV::val_e_system_cost + GV::val_NG_system_cost << endl;
 
 	fid2 << "\n \t Electricity Network Obj Value: " << EV::val_e_system_cost;
-	fid2 << "\n \t Establishment Cost: " << EV::val_est_cost;
+	fid2 << "\n \t Plant Establishment Cost: " << EV::val_est_cost;
+	fid2 << "\n \t Trnas. Establishment Cost: " << EV::val_est_trans_cost;
 	fid2 << "\n \t Decommissioning Cost: " << EV::val_decom_cost;
 	fid2 << "\n \t Fixed Cost: " << EV::val_fixed_cost;
 	fid2 << "\n \t Variable Cost: " << EV::val_var_cost;

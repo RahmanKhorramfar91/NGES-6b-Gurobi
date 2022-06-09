@@ -2,35 +2,38 @@
 #include "ProblemData.h"
 #include"Models_Funcs.h"
 #pragma region Declaration of fields of "Setting" struct
-bool Setting::print_E_vars;
-bool Setting::print_NG_vars;
-bool Setting::print_results_header;
-bool Setting::relax_int_vars;
-bool Setting::is_xi_given;
+bool Setting::print_E_vars=false;
+bool Setting::print_NG_vars=false;
+bool Setting::print_results_header=true;
+bool Setting::relax_int_vars=false;
+bool Setting::is_xi_given=false;
 double Setting::xi_val;
-bool Setting::xi_UB_obj;
-bool Setting::xi_LB_obj;
+bool Setting::xi_UB_obj=false;
+bool Setting::xi_LB_obj=false;
 double Setting::cplex_gap;
 double Setting::CPU_limit;
 int Setting::Num_rep_days;
 double Setting::Emis_lim;
 double Setting::RPS;
-bool Setting::DGSP_active;
-bool Setting::DESP_active;
-bool Setting::Approach_1_active;
-bool Setting::Approach_2_active;
+bool Setting::DGSP_active=false;
+bool Setting::DESP_active=false;
+bool Setting::Approach_1_active=true;
+bool Setting::Approach_2_active=false;
 double Setting::RNG_cap;
 int Setting::Case;
-bool Setting::heuristics1_active;
-bool Setting::warm_start_active;
-bool Setting::print_all_vars;
+bool Setting::heuristics1_active=false;
+bool Setting::warm_start_active=false;
+bool Setting::print_all_vars=false;
+bool Setting::fix_some_E_NG_vars = false;
 double Setting::PGC;
 double Setting::PE;
+bool Setting::use_benders;
 #pragma endregion
 
 int main(int argc, char* argv[])
 {
 	auto start = chrono::high_resolution_clock::now();
+	GRBEnv* env; env = new GRBEnv();
 	//double total_ng_inj_per_year = 4.9E+09; //MMBtu
 	//double total_possible_emis_per_year = total_ng_inj_per_year * 0.05831;//=2.86e8
 	double emission_power_plants = 24e6; // 24 tons = 24e9 kg
@@ -57,7 +60,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 52;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
@@ -79,6 +82,7 @@ int main(int argc, char* argv[])
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
 	Setting::print_all_vars = true;
+	Setting::use_benders = true;
 #pragma endregion
 
 #pragma region  Other parameters   
@@ -142,8 +146,12 @@ int main(int argc, char* argv[])
 	double elec_UB = 0;
 	double ng_obj;
 	double feas_gap;
-	//std::cout << "\n\n start Feasible solution procedure!" << endl;
-	//double gg = DESP();
+
+
+	
+	Benders_Decomposition(env);
+
+	
 	if (only_feas_sol)
 	{
 		double UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
@@ -157,12 +165,11 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	SP_flow_Upper();
 
 	if (Setting::Case == 1)
 	{
-		Electricy_Network_Model();
-		NG_Network_Model();
+		Electricy_Network_Model(env);
+		NG_Network_Model(env);
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 		Print_Results(Elapsed, 0);
@@ -174,18 +181,15 @@ int main(int argc, char* argv[])
 	{
 		bool ap2 = Setting::Approach_2_active;
 		Setting::Approach_2_active = false;
-		double total_cost = Integrated_Model();
+		double total_cost = Integrated_Model(env);
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 		Print_Results(Elapsed, total_cost);
-		if (Setting::xi_LB_obj) { xiLB1 = Integrated_Model(); }
-		if (Setting::xi_UB_obj) { xiUB1 = Integrated_Model(); }
+		if (Setting::xi_LB_obj) { xiLB1 = Integrated_Model(env); }
+		if (Setting::xi_UB_obj) { xiUB1 = Integrated_Model(env); }
 		start = chrono::high_resolution_clock::now();
 		Setting::Approach_2_active = ap2;
 	}
-
-	Benders_Decomposition();
-	//Subproblem();
 
 
 
@@ -196,8 +200,8 @@ int main(int argc, char* argv[])
 	if (Setting::Approach_2_active)
 	{
 		Setting::Approach_1_active = false;
-		desp_obj = DESP();
-		dgsp_obj = DGSP();
+		desp_obj = DESP(env);
+		dgsp_obj = DGSP(env);
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 		Print_Results(Elapsed, dgsp_obj);
