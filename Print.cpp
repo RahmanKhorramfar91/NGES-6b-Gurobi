@@ -207,7 +207,7 @@ void Get_EV_vals(GRBModel Model)
 			}
 		}
 	}
-	/*for (int i = 0; i < nPlt; i++)
+	for (int i = 0; i < nPlt; i++)
 	{
 		if (EV::val_total_prod[i] > 10)
 		{
@@ -216,7 +216,7 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 
-	cout << "\t\t total yearly product: " << total_yearly_prod << endl;*/
+	cout << "\t\t total yearly product: " << total_yearly_prod << endl;
 	EV::val_curtE = new double* [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
@@ -608,8 +608,6 @@ void Get_GV_vals(GRBModel Model)
 #pragma endregion
 
 }
-
-
 
 
 void Print_Results(double Elapsed_time, double status)

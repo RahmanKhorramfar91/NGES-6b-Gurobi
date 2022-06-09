@@ -2,28 +2,28 @@
 #include "ProblemData.h"
 #include"Models_Funcs.h"
 #pragma region Declaration of fields of "Setting" struct
-bool Setting::print_E_vars=false;
-bool Setting::print_NG_vars=false;
-bool Setting::print_results_header=true;
-bool Setting::relax_int_vars=false;
-bool Setting::is_xi_given=false;
+bool Setting::print_E_vars = false;
+bool Setting::print_NG_vars = false;
+bool Setting::print_results_header = true;
+bool Setting::relax_int_vars = false;
+bool Setting::is_xi_given = false;
 double Setting::xi_val;
-bool Setting::xi_UB_obj=false;
-bool Setting::xi_LB_obj=false;
+bool Setting::xi_UB_obj = false;
+bool Setting::xi_LB_obj = false;
 double Setting::cplex_gap;
 double Setting::CPU_limit;
 int Setting::Num_rep_days;
 double Setting::Emis_lim;
 double Setting::RPS;
-bool Setting::DGSP_active=false;
-bool Setting::DESP_active=false;
-bool Setting::Approach_1_active=true;
-bool Setting::Approach_2_active=false;
+bool Setting::DGSP_active = false;
+bool Setting::DESP_active = false;
+bool Setting::Approach_1_active = true;
+bool Setting::Approach_2_active = false;
 double Setting::RNG_cap;
 int Setting::Case;
-bool Setting::heuristics1_active=false;
-bool Setting::warm_start_active=false;
-bool Setting::print_all_vars=false;
+bool Setting::heuristics1_active = false;
+bool Setting::warm_start_active = false;
+bool Setting::print_all_vars = false;
 bool Setting::fix_some_E_NG_vars = false;
 double Setting::PGC;
 double Setting::PE;
@@ -60,12 +60,12 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 52;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
-		Setting::is_xi_given = false;
-		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
+		Setting::is_xi_given = true;
+		Setting::xi_val = 0.1;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
 		Setting::RPS = 0.0;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.2; //0.2,0.3,0.4,
@@ -148,10 +148,13 @@ int main(int argc, char* argv[])
 	double feas_gap;
 
 
-	
-	Benders_Decomposition(env);
+	if (Setting::use_benders = true)
+	{
+		Benders_Decomposition(env);
+		return 0;
+	}
 
-	
+
 	if (only_feas_sol)
 	{
 		double UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
