@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 7;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
@@ -93,12 +93,12 @@ int main(int argc, char* argv[])
 	int trans_line_lifespan = 30; // years
 	int decom_lifetime = 2035 - 2016;
 	int battery_lifetime = 15; // 
-	double NG_price = 4;//per MMBTu, approximated from NG price in eia.gov
+	double NG_price = 5.45;//per MMBTu, approximated from NG price in eia.gov
 	double dfo_pric = (1e6 / 1.37e5) * 3.5;//https://www.eia.gov/energyexplained/units-and-calculators/ and https://www.eia.gov/petroleum/gasdiesel/
 	double coal_price = 92 / 19.26; //https://www.eia.gov/coal/ and https://www.eia.gov/tools/faqs/faq.php?id=72&t=2#:~:text=In%202020%2C%20the%20annual%20average,million%20Btu%20per%20short%20ton.
 	double Nuclear_price = 0.72; // per MMBtu from 2045 ATB 2021
-	double E_curt_cost = 3e4; // $ per MWh;
-	double G_curt_cost = 3e3; // & per MMBtu
+	double E_curt_cost = 10e3; // $ per MWh;
+	double G_curt_cost = 10e3; // & per MMBtu
 	double pipe_per_mile = 7e+5;//https://www.gem.wiki/Oil_and_Gas_Pipeline_Construction_Costs
 	int SVL_lifetime = 30; //https://www.hydrogen.energy.gov/pdfs/19001_hydrogen_liquefaction_costs.pdf
 	int pipe_lifespan = 30; // years, https://www.popsci.com/story/environment/oil-gas-pipelines-property/#:~:text=There%20are%20some%203%20million,%2C%20power%20plants%2C%20and%20homes.&text=Those%20pipelines%20have%20an%20average%20lifespan%20of%2050%20years.
