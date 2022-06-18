@@ -60,14 +60,14 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 7;   // 2, 7, 14, 30, 52, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
-		Setting::is_xi_given = true;
-		Setting::xi_val = 0.1;//0.01,0.05, 0.1,0.15,0.2,;
+		Setting::is_xi_given = false;
+		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
-		Setting::RPS = 0.0;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RPS = 0.2;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.2; //0.2,0.3,0.4,
 		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
@@ -81,14 +81,14 @@ int main(int argc, char* argv[])
 	//Setting::heuristics1_active = true;
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
-	Setting::print_all_vars = true;
-	Setting::use_benders = true;
+	Setting::print_all_vars = false;
+	Setting::use_benders = false;
 #pragma endregion
 
 #pragma region  Other parameters   
 	Params::Num_Rep_Days = Setting::Num_rep_days;
 	double RNG_price = 20; // $$ per MMBtu
-	double WACC = 0.05;// Weighted average cost of capital to calculate CAPEX coefficient from ATB2021
+	double WACC = 0.071;// Weighted average cost of capital to calculate CAPEX coefficient from ATB2021
 	int trans_unit_cost = 3500; // dollars per MW per mile of trans. line (ReEDS 2019)
 	int trans_line_lifespan = 30; // years
 	int decom_lifetime = 2035 - 2016;
@@ -148,7 +148,7 @@ int main(int argc, char* argv[])
 	double feas_gap;
 
 
-	if (Setting::use_benders = true)
+	if (Setting::use_benders)
 	{
 		Benders_Decomposition(env);
 		return 0;

@@ -264,8 +264,17 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vect
 			iss >> pp;
 			hp.push_back(pp);
 		}
-
+		// row 1 to 6 for existing plants
 		Plants[sym2pltType["wind"]].zonal_profile.push_back(hp);
+
+		
+		 hp.clear();
+		for (int i = 6; i < 12; i++)// six node (parameterize this later)
+		{
+			iss >> pp;
+			hp.push_back(pp);
+		}
+		// row 7 to 12 for new plants
 		Plants[sym2pltType["wind-new"]].zonal_profile.push_back(hp);
 	}
 	while (getline(fid3, line))
@@ -278,8 +287,17 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vect
 			iss >> pp;
 			hp.push_back(pp);
 		}
-		iss >> pp;
+		
 		Plants[sym2pltType["solar"]].zonal_profile.push_back(hp);
+
+
+		hp.clear();
+		for (int i = 6; i < 12; i++)// six node (parameterize this later)
+		{
+			iss >> pp;
+			hp.push_back(pp);
+		}
+
 		Plants[sym2pltType["solar-UPV"]].zonal_profile.push_back(hp);
 	}
 	while (getline(fid4, line))

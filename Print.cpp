@@ -610,6 +610,8 @@ void Get_GV_vals(GRBModel Model)
 }
 
 
+
+
 void Print_Results(double Elapsed_time, double status)
 {
 #pragma region Fetch Data

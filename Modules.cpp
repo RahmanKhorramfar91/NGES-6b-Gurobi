@@ -256,7 +256,6 @@ void  Populate_EV_SP(GRBModel& Model)
 	EV::YeLev = new GRBVar * [nEnode]; // continuous: charge/discharge level
 	EV::YeStr = new GRBVar * [nEnode]; // (binary) if a storage is established
 
-
 	if (Setting::relax_int_vars)
 	{
 		EV::Ze = Model.addVars(nBr, GRB_CONTINUOUS);
@@ -329,6 +328,11 @@ void  Populate_EV_SP(GRBModel& Model)
 					EV::Xdec[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
 					EV::Xop[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
 				}
+
+				// Remove the next three lines later
+				EV::Xest[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
+				EV::Xdec[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
+				EV::Xop[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
 			}
 		}
 

@@ -7,7 +7,7 @@ void Benders_Decomposition(GRBEnv* env)
 	double MP_obj = 0; //MP objective in the current iterations
 	int iter = 0;
 	int iter_lim = 0; double gap = 1;
-	double feas_obj = 0;
+	
 	while (true)
 	{		
 		MP_obj = Master_Problem(Cuts,env);
@@ -20,7 +20,7 @@ void Benders_Decomposition(GRBEnv* env)
 		if (iter_lim == 2)
 		{
 			Setting::fix_some_E_NG_vars = true;
-			feas_obj = Integrated_Model(env);
+			double feas_obj = Integrated_Model(env);
 			gap = (feas_obj - MP_obj) / MP_obj;
 			Setting::fix_some_E_NG_vars = false;
 			iter_lim = 0;
@@ -29,7 +29,6 @@ void Benders_Decomposition(GRBEnv* env)
 
 		if (gap < 0.01)
 		{
-			Print_Results(Elapsed, feas_obj);
 			break;
 		}
 		
