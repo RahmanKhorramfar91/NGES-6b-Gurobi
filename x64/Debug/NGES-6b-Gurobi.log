@@ -1,3 +1,9 @@
-﻿  Main.cpp
-C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Main.cpp(133,35): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+﻿  Benders.cpp
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(1,9): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(295,11): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(328,14): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(747,58): warning C4244: '+=': conversion from 'double' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(1899,42): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(1900,42): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\Benders.cpp(2127,5): warning C4101: 'sp_new': unreferenced local variable
   NGES-6b-Gurobi.vcxproj -> C:\Users\Rahman Khorramfar\Desktop\NGES Codes\NGES-6b-Gurobi\x64\Debug\NGES-6b-Gurobi.exe

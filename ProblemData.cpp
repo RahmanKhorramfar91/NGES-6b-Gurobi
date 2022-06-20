@@ -154,7 +154,7 @@ vector<plant> plant::read_regional_coeffs(string FN, vector<plant>& Plants)
 {
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
 {"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
-		{"Ct",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
 		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
 	vector<plant> NewPlants;
 	ifstream fid(FN);
@@ -167,7 +167,7 @@ vector<plant> plant::read_regional_coeffs(string FN, vector<plant>& Plants)
 		vector<double> s1;
 		double c1;
 		for (int i = 0; i < sym2pltType.size(); i++)
-		{			
+		{
 			iss >> c1;
 			s1.push_back(c1);
 		}
@@ -194,13 +194,13 @@ vector<plant> plant::read_new_plant_data(string name)
 		//	string t, int n, int ise, int cap, int f, int v, double emi, double hr, int lt, int dec,
 			//	double pmax, double ru, double rd, int emic
 		std::istringstream iss(line);
-		double n, ise, capex, f, v, emi, hr, lt, dec, ru,max_gen,pmax,pmin;
+		double n, ise, capex, f, v, emi, hr, lt, dec, ru, strCost, strFuel, pmax, pmin;
 		//double  n, capex,pmax, pmin,ru,rd, fix_cost, var_cost, decom_cost, emis_cost, lifespan;
 		string type;
 		double h, emis_rate;
-		iss >> type >> n >> ise >> capex >> f >> v >> emi >> hr >> lt >> dec>>pmax>>pmin>> ru>>max_gen;
+		iss >> type >> n >> ise >> capex >> f >> v >> emi >> hr >> lt >> dec >> pmax >> pmin >> ru >> strCost >> strFuel;
 		//iss >> type >> n >> capex >>pmax>>pmin>>ru>>rd>> fix_cost >> var_cost >> h >> emis_rate >> decom_cost >> emis_cost >> lifespan;
-		plant np(type, (int)n, (int)ise,capex, (int)f, (int)v, emi, hr, (int)lt, (int)dec,pmax,pmin, ru, max_gen);
+		plant np(type, (int)n, (int)ise, capex, (int)f, (int)v, emi, hr, (int)lt, (int)dec, pmax, pmin, ru, strCost, strFuel);
 		NewPlants.push_back(np);
 	}
 	fid.close();
@@ -215,9 +215,9 @@ vector<eStore> eStore::read_elec_storage_data(string name)
 	while (getline(fid, line))
 	{
 		std::istringstream iss(line);
-		double en, pow, ch, dis, efom,pfom;
-		iss >> en >> pow >> ch >> dis >> efom>>pfom;
-		eStore str((int)en, (int)pow, ch, dis, efom,pfom);
+		double en, pow, ch, dis, efom, pfom;
+		iss >> en >> pow >> ch >> dis >> efom >> pfom;
+		eStore str((int)en, (int)pow, ch, dis, efom, pfom);
 		Estorage.push_back(str);
 	}
 	fid.close();
@@ -227,11 +227,11 @@ vector<eStore> eStore::read_elec_storage_data(string name)
 
 
 
-void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vector<plant>& Plants)
+void plant::read_VRE_profile(string FN1, string FN2, string FN3, string FN4, vector<plant>& Plants)
 {
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
 {"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
-		{"Ct",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
 		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
 
 	ifstream fid1(FN1);// hydro
@@ -249,7 +249,7 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vect
 			iss >> pp;
 			hp.push_back(pp);
 		}
-		
+
 		Plants[sym2pltType["hydro"]].zonal_profile.push_back(hp);
 		Plants[sym2pltType["hydro-new"]].zonal_profile.push_back(hp);
 	}
@@ -267,8 +267,8 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vect
 		// row 1 to 6 for existing plants
 		Plants[sym2pltType["wind"]].zonal_profile.push_back(hp);
 
-		
-		 hp.clear();
+
+		hp.clear();
 		for (int i = 6; i < 12; i++)// six node (parameterize this later)
 		{
 			iss >> pp;
@@ -287,7 +287,7 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vect
 			iss >> pp;
 			hp.push_back(pp);
 		}
-		
+
 		Plants[sym2pltType["solar"]].zonal_profile.push_back(hp);
 
 
@@ -307,8 +307,8 @@ void plant::read_VRE_profile(string FN1, string FN2, string FN3,string FN4, vect
 		vector<double> hp;
 		//for (int i = 0; i < 1; i++)// applies to all nodes
 		//{
-			iss >> pp;
-			hp.push_back(pp);
+		iss >> pp;
+		hp.push_back(pp);
 		//}
 
 		Plants[sym2pltType["wind_offshore"]].zonal_profile.push_back(hp);
@@ -658,7 +658,7 @@ void Read_Data()
 
 	vector<plant> Plants = plant::read_new_plant_data("plant_data.txt");
 	plant::read_VRE_profile("profile_hydro_hourly.txt",
-		"profile_wind_hourly.txt", "profile_solar_hourly.txt","profile_wind_offshore_hourly.txt", Plants);
+		"profile_wind_hourly.txt", "profile_solar_hourly.txt", "profile_wind_offshore_hourly.txt", Plants);
 	Plants = plant::read_regional_coeffs("Regional_multiplier_coeff.txt", Plants);
 
 	vector<branch> Branches = branch::read_branch_data(nEnode, "Branches.txt", Le);

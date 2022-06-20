@@ -62,6 +62,7 @@ void Get_EV_vals(GRBModel Model)
 	EV::val_est_trans_cost = EV::est_trans_cost.get(GRB_DoubleAttr_X);
 	EV::val_decom_cost = EV::decom_cost.get(GRB_DoubleAttr_X);
 	EV::val_fixed_cost = EV::fixed_cost.get(GRB_DoubleAttr_X);
+	EV::val_startup_cost = EV::startup_cost.get(GRB_DoubleAttr_X);
 	EV::val_var_cost = EV::var_cost.get(GRB_DoubleAttr_X);
 	EV::val_thermal_fuel_cost = EV::thermal_fuel_cost.get(GRB_DoubleAttr_X);
 	EV::val_shedding_cost = EV::shedding_cost.get(GRB_DoubleAttr_X);
@@ -116,14 +117,19 @@ void Get_EV_vals(GRBModel Model)
 			EV::val_Xop[n][i] = std::round(EV::Xop[n][i].get(GRB_DoubleAttr_X));
 			EV::val_Xest[n][i] = std::round(EV::Xest[n][i].get(GRB_DoubleAttr_X));
 			EV::val_Xdec[n][i] = std::round(EV::Xdec[n][i].get(GRB_DoubleAttr_X));
-			//if (EV::val_Xest[n][i] > 0)
-			//{
-			//	cout << "X[" << n << "][" << i << "] = " << EV::val_Xest[n][i] << endl;
-			//}
-			//if (EV::val_Xop[n][i] > 0)
-			//{
-			//	cout << "X[" << n << "][" << i << "] = " << EV::val_Xop[n][i] << endl;
-			//}
+			/*if (EV::val_Xest[n][i] > 0)
+			{
+				cout << "Xest[" << n << "][" << i << "] = " << EV::val_Xest[n][i] << endl;
+			}
+			if (EV::val_Xop[n][i] > 0)
+			{
+				cout << "Xop[" << n << "][" << i << "] = " << EV::val_Xop[n][i] << endl;
+			}
+			if (EV::val_Xdec[n][i] > 0)
+			{
+				cout << "Xdec[" << n << "][" << i << "] = " << EV::val_Xdec[n][i] << endl;
+			}*/
+
 			//XestS[n][i] = EV::Xest[n][i]);
 			//XdecS[n][i] = EV::Xdec[n][i]);
 			//Xs[n][i] = EV::Xop[n][i]);
@@ -209,6 +215,10 @@ void Get_EV_vals(GRBModel Model)
 	}
 	for (int i = 0; i < nPlt; i++)
 	{
+		if (i==14)
+		{
+			int gg = 0;
+		}
 		if (EV::val_total_prod[i] > 10)
 		{
 			cout << Plants[i].type << ": \t " << EV::val_total_prod[i] << endl;
@@ -761,6 +771,7 @@ void Print_Results(double Elapsed_time, double status)
 		fid << "Est_trans_cost" << ",";
 		fid << "Decom_cost" << ",";
 		fid << "Fixed_cost" << ",";
+		fid << "Startup_cost" << ",";
 		fid << "Variable_cost" << ",";
 		fid << "dfo_coal_or_NG_emis_cost" << ",";
 		fid << "Coal_dfo_or_NG_fuel_cost" << ",";
@@ -835,6 +846,7 @@ void Print_Results(double Elapsed_time, double status)
 	fid << EV::val_est_trans_cost << ",";
 	fid << EV::val_decom_cost << ",";
 	fid << EV::val_fixed_cost << ",";
+	fid << EV::val_startup_cost << ",";
 	fid << EV::val_var_cost << ",";
 	fid << EV::val_dfo_coal_emis_cost << ",";
 	fid << EV::val_thermal_fuel_cost << ",";
@@ -922,6 +934,7 @@ void Print_Results(double Elapsed_time, double status)
 	fid2 << "\n \t Trnas. Establishment Cost: " << EV::val_est_trans_cost;
 	fid2 << "\n \t Decommissioning Cost: " << EV::val_decom_cost;
 	fid2 << "\n \t Fixed Cost: " << EV::val_fixed_cost;
+	fid2 << "\n \t Startup Cost: " << EV::val_startup_cost;
 	fid2 << "\n \t Variable Cost: " << EV::val_var_cost;
 	fid2 << "\n \t [NG] emission cost: " << EV::val_dfo_coal_emis_cost;
 	fid2 << "\n \t ([NG and] nuclear) Fuel Cost: " << EV::val_thermal_fuel_cost;

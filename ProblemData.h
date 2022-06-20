@@ -69,10 +69,11 @@ struct plant
 	double heat_rate;//MMBTU/MWh
 	int lifetime; // year
 	int decom_cost;
-	double Pmax;	
-	double Pmin;
+	double Pmax;	// nameplate capacity
+	double Pmin; // minimum stable output
 	double rampU;
-	double max_yearly_gen;  // for existing plants MW
+	double startup_cost;
+	double startup_fuel;
 	//double rampD;
 	//int emis_cost; //$/ton
 	// revisit these paramters laters
@@ -82,7 +83,7 @@ struct plant
 	vector<double> Reg_coeffs_per_state;
 
 	plant(string t, int n, int ise,double capex, int f, int v, double emi, double hr, int lt, int dec,
-		double pmax, double pmin, double ru, double max_gen)
+		double pmax, double pmin, double ru, double strCost, double strFuel)
 	{
 		this->type = t;
 		this->num = n;
@@ -97,7 +98,8 @@ struct plant
 		this->Pmax = pmax;
 		this->Pmin = pmin;
 		this->rampU = ru;
-		this->max_yearly_gen = max_gen;
+		this->startup_cost = strCost;
+		this->startup_fuel = strFuel;
 		//this->rampD = rd;
 		//this->emis_cost = emic;
 		//this->Umax = max_num;

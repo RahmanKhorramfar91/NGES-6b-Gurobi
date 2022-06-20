@@ -7,17 +7,17 @@ void Benders_Decomposition(GRBEnv* env)
 	double MP_obj = 0; //MP objective in the current iterations
 	int iter = 0;
 	int iter_lim = 0; double gap = 1;
-	
+
 	while (true)
-	{		
-		MP_obj = Master_Problem(Cuts,env);
-		double Dual_stat = Dual_Subproblem(Cuts,env); // 0: unbounded, -1: feasible sol
+	{
+		MP_obj = Master_Problem(Cuts, env);
+		double Dual_stat = Dual_Subproblem(Cuts, env); // 0: unbounded, -1: feasible sol
 		//double gap = std::abs(MP_obj0 - MP_obj1) / MP_obj1;
 
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
-		std::cout << "Elapsed time: " << Elapsed<<"\t Iteration: "<<iter << "\t MP Obj: " << MP_obj << endl;
-		if (iter_lim == 2)
+		std::cout << "Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj << endl;
+		if (iter_lim == 10)
 		{
 			Setting::fix_some_E_NG_vars = true;
 			double feas_obj = Integrated_Model(env);
@@ -31,7 +31,7 @@ void Benders_Decomposition(GRBEnv* env)
 		{
 			break;
 		}
-		
+
 		iter++; iter_lim++;
 	}
 
@@ -42,13 +42,13 @@ void Benders_Decomposition(GRBEnv* env)
 }
 
 
-double Master_Problem(vector<SP> Cuts,GRBEnv* env)
+double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 {
 	//auto start = chrono::high_resolution_clock::now();
 #pragma region Fetch Data
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
 {"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
-		{"Ct",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
 		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
 	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
 {2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };
@@ -85,7 +85,7 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 
 
 	//GRBEnv* env = 0;
-	
+
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_NGobj(0);
 	GRBLinExpr exp_Eobj(0);
@@ -191,6 +191,7 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 	GRBLinExpr ex_est(0);
 	GRBLinExpr ex_decom(0);
 	GRBLinExpr ex_fix(0);
+	GRBLinExpr ex_startup(0);
 	GRBLinExpr ex_var(0);
 	GRBLinExpr ex_thermal_fuel(0);
 	GRBLinExpr ex_emis(0);
@@ -258,11 +259,14 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 					}
 				}
 
-				// emission cost (no longer needed)
-				/*if (Plants[i].type != "ng" && Plants[i].type != "CT" && Plants[i].type != "CC" && Plants[i].type != "CC-CCS")
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
 				{
-					ex_emis += time_weight[t] * Plants[i].emis_cost * Plants[i].emis_rate * EV::prod[n][t][i];
-				}*/
+					// startup cost
+					ex_startup += time_weight[t] * Plants[i].startup_cost * EV::Xup[n][t][i];
+				}
+
 			}
 
 			// load curtailment cost
@@ -291,17 +295,18 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 		int tbi = std::find(Enodes[fb].adj_buses.begin(), Enodes[fb].adj_buses.end(), tb) - Enodes[fb].adj_buses.begin();
 		ex_trans += capco * trans_unit_cost * Branches[b].maxFlow * Branches[b].length * EV::Ze[b];
 	}
-	exp_Eobj = ex_est + ex_decom + ex_fix + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
+	exp_Eobj = ex_est + ex_decom + ex_fix + ex_startup + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
 
 	Model.addConstr(EV::est_cost == ex_est);
+	Model.addConstr(EV::est_trans_cost == ex_trans);
 	Model.addConstr(EV::decom_cost == ex_decom);
 	Model.addConstr(EV::fixed_cost == ex_fix);
 	Model.addConstr(EV::var_cost == ex_var);
-	Model.addConstr(EV::est_trans_cost == ex_trans);
 	Model.addConstr(EV::thermal_fuel_cost == ex_thermal_fuel);
 	Model.addConstr(EV::dfo_coal_emis_cost == ex_emis);
 	Model.addConstr(EV::shedding_cost == ex_shedd);
 	Model.addConstr(EV::elec_storage_cost == ex_elec_str);
+	Model.addConstr(EV::startup_cost == ex_startup);
 
 	Model.addConstr(exp_Eobj == EV::e_system_cost);
 	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
@@ -309,8 +314,7 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 
 
 #pragma region MP Electricity local constraints
-	// C1, C2: number of generation units at each node	
-	int existP = 0;
+	// C1: number of generation units at each node	
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
@@ -328,47 +332,91 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 			{
 				Model.addConstr(EV::Xop[n][i] == -EV::Xdec[n][i] + EV::Xest[n][i]);
 			}
-			//C2: maximum number of each plant type at each node (not necessary)
-			//Model.addConstr(EV::Xop[n][i] <= Plants[i].Umax);
+
+			for (int t = 0; t < Te.size(); t++)
+			{
+				// (w/o UC version) keep this to avoid power generation from hydro-new, dfor, etc.
+				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
+				// (w/o UC version)
+				//			if (t > 0)
+	//			{
+	//				//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
+	//				Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//				Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//			}
+			}
 		}
 	}
 
-	//C3, C4: production limit, ramping	
+	//C2, C3, C4, C5: UC,  production limit, ramping for thermal units (ng, CT, CC, CC-CCS, nuclear)	
 	for (int n = 0; n < nEnode; n++)
 	{
-		for (int t = 0; t < Te.size(); t++)
+		for (int i = 0; i < nPlt; i++)
 		{
-			for (int i = 0; i < nPlt; i++)
+			for (int t = 0; t < Te.size(); t++)
 			{
-				//Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]); since we don't consider unit commitment in this model
-				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
-
-				//if (t > 0 && !Setting::heuristics1_active) 
-				if (t > 0)
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
 				{
-					//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
-					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
-					Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+					// UC 1
+					if (t > 0)
+					{
+						Model.addConstr(EV::X[n][t][i] - EV::X[n][t - 1][i] == EV::Xup[n][t][i] - EV::Xdown[n][t][i]);
+					}
+					// UC 2
+					Model.addConstr(EV::X[n][t][i] <= EV::Xop[n][i]);
+					// output limit
+					Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * Plants[i].Pmax * EV::X[n][t][i]);
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::X[n][t][i]);
+					//ramping
+					if (t > 0)
+					{
+						double mx1 = std::max(Plants[i].Pmin, Plants[i].rampU);
+						Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+						Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+					}
 				}
 			}
 		}
 	}
 
-	// C 3.5: max yearly generation for existing plants
-	for (int i = 0; i < nPlt; i++)
-	{
-		GRBLinExpr ex0(0);
-		if (Plants[i].is_exis != 1) { continue; }
+	////C3, C4: production limit, ramping	
+	//for (int n = 0; n < nEnode; n++)
+	//{
+	//	for (int t = 0; t < Te.size(); t++)
+	//	{
+	//		for (int i = 0; i < nPlt; i++)
+	//		{
+	//			//Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]); since we don't consider unit commitment in this model
+	//			Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
 
-		for (int n = 0; n < nEnode; n++)
-		{
-			for (int t = 0; t < Te.size(); t++)
-			{
-				ex0 += time_weight[t] * EV::prod[n][t][i];
-			}
-		}
-		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
-	}
+	//			//if (t > 0 && !Setting::heuristics1_active) 
+	//			if (t > 0)
+	//			{
+	//				//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
+	//				Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//				Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//			}
+	//		}
+	//	}
+	//}
+
+	//// C 3.5: max yearly generation for existing plants
+	//for (int i = 0; i < nPlt; i++)
+	//{
+	//	GRBLinExpr ex0(0);
+	//	if (Plants[i].is_exis != 1) { continue; }
+
+	//	for (int n = 0; n < nEnode; n++)
+	//	{
+	//		for (int t = 0; t < Te.size(); t++)
+	//		{
+	//			ex0 += time_weight[t] * EV::prod[n][t][i];
+	//		}
+	//	}
+	//	Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
+	//}
 
 	// C5, C6: flow limit for electricity
 	//C7: power balance
@@ -496,22 +544,14 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 	//Chi = Model.addVars(2, GRB_CONTINUOUS);
 	//Model.addConstr(Chi[0] >= ex_cut);
 	//Chi[0] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-	//GRBLinExpr ex_cut(0);
 
+	bool Multi_cut = false;  // multicut implementation or single cut
+	GRBLinExpr ex_cut(0);
 	for (int c = 0; c < Cuts.size(); c++)
 	{
 
-		//for (int i = 0; i < nPlt; i++)
-		//{
-		//	if (Plants[i].is_exis != 1) { continue; } // only applies to existing plants
-		//	ex_cut -= Plants[i].max_yearly_gen * Cuts[c].dual_val_alpha[i];
-		//}
-		//double lhs = 0;
-
 		for (int t = 0; t < Te.size(); t++)
 		{
-			GRBLinExpr ex_cut(0);
-
 			for (int n = 0; n < nEnode; n++)
 			{
 				GRBLinExpr exp_prod(0);
@@ -559,11 +599,17 @@ double Master_Problem(vector<SP> Cuts,GRBEnv* env)
 					ex_cut -= Big_M * (1 - EV::Ze[b]) * Cuts[c].dual_val_zeta12[b][t];
 				}
 			}
+			if (Multi_cut)
+			{
+				Model.addConstr(ex_cut <= 0); // all cuts are feasibility cuts
+				ex_cut.clear();
+			}
+		}
+		if (!Multi_cut)
+		{
 			Model.addConstr(ex_cut <= 0); // all cuts are feasibility cuts
 			ex_cut.clear();
 		}
-
-
 	}
 
 #pragma endregion
@@ -1283,7 +1329,7 @@ double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env)
 					fd += std::abs(sp_new.dual_val_eta1[n][t]);
 					sp_new.dual_val_eta2[n][t] = std::max(0.0, SP::eta2[n][t].get(GRB_DoubleAttr_UnbdRay));
 					fd += std::abs(sp_new.dual_val_eta2[n][t]);
-					//	cout << "eta1: " << sp_new.dual_val_eta1[n][t] << " eta2: " << sp_new.dual_val_eta2[n][t] << endl;
+					//cout << "eta1: " << sp_new.dual_val_eta1[n][t] << " eta2: " << sp_new.dual_val_eta2[n][t] << endl;
 
 				}
 			}
@@ -1317,10 +1363,10 @@ double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env)
 					sp_new.dual_val_zeta11[b][t] = std::max(0.0, SP::zeta11[b][t].get(GRB_DoubleAttr_UnbdRay));
 					sp_new.dual_val_zeta12[b][t] = std::max(0.0, SP::zeta12[b][t].get(GRB_DoubleAttr_UnbdRay));
 				}
-				//cout << "existing: " << Branches[b].is_exist << " \t delta11: " << sp_new.dual_val_delta11[b][t] << " delta12: " << sp_new.dual_val_delta12[b][t] << " delta21: " << sp_new.dual_val_delta21[b][t] << " delta22: " << sp_new.dual_val_delta22[b][t] << endl;
-				//cout << "zeta11: " << sp_new.dual_val_zeta11[b][t] << " zeta12: " << sp_new.dual_val_zeta12[b][t] << " zeta21: " << sp_new.dual_val_zeta21[b][t] << " zeta22: " << sp_new.dual_val_zeta22[b][t] << endl;
+				//	cout << "existing: " << Branches[b].is_exist << " \t delta11: " << sp_new.dual_val_delta11[b][t] << " delta12: " << sp_new.dual_val_delta12[b][t] << " delta21: " << sp_new.dual_val_delta21[b][t] << " delta22: " << sp_new.dual_val_delta22[b][t] << endl;
+					//cout << "zeta11: " << sp_new.dual_val_zeta11[b][t] << " zeta12: " << sp_new.dual_val_zeta12[b][t] << " zeta21: " << sp_new.dual_val_zeta21[b][t] << " zeta22: " << sp_new.dual_val_zeta22[b][t] << endl;
 
-				//fd += SP::dual_val_delta11[b][t] + SP::dual_val_delta12[b][t] + SP::dual_val_delta21[b][t] + SP::dual_val_delta22[b][t];
+					//fd += SP::dual_val_delta11[b][t] + SP::dual_val_delta12[b][t] + SP::dual_val_delta21[b][t] + SP::dual_val_delta22[b][t];
 
 			}
 		}
@@ -1866,20 +1912,7 @@ void SP_flow_Upper()
 #pragma region Electricity Network Constraints
 	// C1, C2: number of generation units at each node	
 	// C 3.5: max yearly generation for existing plants
-	for (int i = 0; i < nPlt; i++)
-	{
-		GRBLinExpr ex0(0);
-		if (Plants[i].is_exis != 1) { continue; }
 
-		for (int n = 0; n < nEnode; n++)
-		{
-			for (int t = 0; t < Te.size(); t++)
-			{
-				ex0 += time_weight[t] * EV::prod[n][t][i];
-			}
-		}
-		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
-	}
 	//C3, C4: production limit, ramping	
 	// C5, C6: flow limit for electricity
 	for (int br = 0; br < nBr; br++)
@@ -2098,7 +2131,7 @@ int Primal_subproblem(vector<SP>& Cuts)
 
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
 {"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
-		{"Ct",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
 		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
 	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
 {2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };

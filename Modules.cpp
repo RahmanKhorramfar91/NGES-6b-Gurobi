@@ -3,6 +3,9 @@
 #pragma region EV struct
 GRBVar** EV::Xest; // integer (continues) for plants
 GRBVar** EV::Xdec; // integer (continues) for plants
+GRBVar*** EV::X;
+GRBVar*** EV::Xup;
+GRBVar*** EV::Xdown;
 GRBVar** EV::YeCD; // continuous: charge/discharge capacity
 GRBVar** EV::YeLev; // continuous: charge/discharge level
 GRBVar** EV::YeStr;
@@ -18,6 +21,7 @@ GRBVar** EV::flowE;
 GRBVar EV::est_cost;
 GRBVar EV::decom_cost;
 GRBVar EV::fixed_cost;
+GRBVar EV::startup_cost;
 GRBVar EV::var_cost;
 GRBVar EV::thermal_fuel_cost;
 GRBVar EV::shedding_cost;
@@ -33,6 +37,7 @@ double EV::val_est_cost;
 double EV::val_est_trans_cost;
 double EV::val_decom_cost;
 double EV::val_fixed_cost;
+double EV::val_startup_cost;
 double EV::val_var_cost;
 double EV::val_thermal_fuel_cost;
 double EV::val_shedding_cost;
@@ -252,6 +257,9 @@ void  Populate_EV_SP(GRBModel& Model)
 #pragma region Electricity network DVs+ SP duals
 	EV::Xest = new GRBVar * [nEnode]; // integer (continues) for plants
 	EV::Xdec = new GRBVar * [nEnode]; // integer (continues) for plants
+	EV::X = new GRBVar * *[nEnode];
+	EV::Xup = new GRBVar * *[nEnode];
+	EV::Xdown = new GRBVar * *[nEnode];
 	EV::YeCD = new GRBVar * [nEnode]; // continuous: charge/discharge capacity
 	EV::YeLev = new GRBVar * [nEnode]; // continuous: charge/discharge level
 	EV::YeStr = new GRBVar * [nEnode]; // (binary) if a storage is established
@@ -316,7 +324,7 @@ void  Populate_EV_SP(GRBModel& Model)
 			EV::Xdec[n] = Model.addVars(nPlt);
 			for (int i = 0; i < nPlt; i++)
 			{
-				if (Plants[i].type == "solar-UPV" || Plants[i].type == "wind-new")
+				/*if (Plants[i].type == "solar-UPV" || Plants[i].type == "wind-new")
 				{
 					EV::Xest[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 					EV::Xdec[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
@@ -327,7 +335,7 @@ void  Populate_EV_SP(GRBModel& Model)
 					EV::Xest[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
 					EV::Xdec[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
 					EV::Xop[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
-				}
+				}*/
 
 				// Remove the next three lines later
 				EV::Xest[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
@@ -351,6 +359,9 @@ void  Populate_EV_SP(GRBModel& Model)
 			EV::YeStr[n] = Model.addVars(neSt, GRB_BINARY);
 		}
 
+		EV::X[n] = new GRBVar * [Te.size()];
+		EV::Xup[n] = new GRBVar * [Te.size()];
+		EV::Xdown[n] = new GRBVar * [Te.size()];
 		EV::prod[n] = new GRBVar * [Te.size()];
 		EV::eSch[n] = new GRBVar * [Te.size()];
 		EV::eSdis[n] = new GRBVar * [Te.size()];
@@ -358,10 +369,9 @@ void  Populate_EV_SP(GRBModel& Model)
 
 		for (int t = 0; t < Te.size(); t++)
 		{
-			//SP::d_beta[n][t] = new GRBConstr[nPlt];
-			//SP::d_gamma1[n][t] = new GRBConstr[nPlt];
-			//SP::d_gamma2[n][t] = new GRBConstr[nPlt];
-			//SP::d_pi[n][t] = new GRBConstr[nPlt];
+			EV::X[n][t] = Model.addVars(nPlt, GRB_INTEGER);
+			EV::Xup[n][t] = Model.addVars(nPlt, GRB_INTEGER);
+			EV::Xdown[n][t] = Model.addVars(nPlt, GRB_INTEGER);
 			EV::theta[n][t] = Model.addVar(-GRB_INFINITY, GRB_INFINITY, 0, GRB_CONTINUOUS);
 			EV::prod[n][t] = Model.addVars(nPlt);
 			EV::eSch[n][t] = Model.addVars(neSt);
@@ -385,6 +395,7 @@ void  Populate_EV_SP(GRBModel& Model)
 	EV::est_trans_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::decom_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::fixed_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+	EV::startup_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::var_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::thermal_fuel_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	EV::dfo_coal_emis_cost = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
@@ -533,7 +544,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
 {"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
-		{"Ct",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
 		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
 	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
 {2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };
@@ -589,6 +600,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::Xest[n][i] == 0);
 			}
+			/*if (Plants[i].type == "nuclear-new")
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}*/
 
 			if (Plants[i].type == "wind-offshore-new")
 			{
@@ -599,10 +614,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				Model.addConstr(EV::Xest[n][i] == 0);
 			}
 
-			if (Plants[i].type == "nuclear-new")
-			{
-				Model.addConstr(EV::Xest[n][i] == 0);
-			}
+
 
 			if (Plants[i].is_exis == 1)
 			{
@@ -646,6 +658,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	GRBLinExpr ex_est(0);
 	GRBLinExpr ex_decom(0);
 	GRBLinExpr ex_fix(0);
+	GRBLinExpr ex_startup(0);
 	GRBLinExpr ex_var(0);
 	GRBLinExpr ex_thermal_fuel(0);
 	GRBLinExpr ex_emis(0);
@@ -713,11 +726,14 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 					}
 				}
 
-				// emission cost (no longer needed)
-				/*if (Plants[i].type != "ng" && Plants[i].type != "CT" && Plants[i].type != "CC" && Plants[i].type != "CC-CCS")
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
 				{
-					ex_emis += time_weight[t] * Plants[i].emis_cost * Plants[i].emis_rate * EV::prod[n][t][i];
-				}*/
+					// startup cost
+					ex_startup += time_weight[t] * Plants[i].startup_cost * EV::Xup[n][t][i];
+				}
+
 			}
 
 			// load curtailment cost
@@ -746,7 +762,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		int tbi = std::find(Enodes[fb].adj_buses.begin(), Enodes[fb].adj_buses.end(), tb) - Enodes[fb].adj_buses.begin();
 		ex_trans += capco * trans_unit_cost * Branches[b].maxFlow * Branches[b].length * EV::Ze[b];
 	}
-	exp_Eobj = ex_est + ex_decom + ex_fix + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
+	exp_Eobj = ex_est + ex_decom + ex_fix + ex_startup + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
 
 	Model.addConstr(EV::est_cost == ex_est);
 	Model.addConstr(EV::est_trans_cost == ex_trans);
@@ -757,12 +773,12 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	Model.addConstr(EV::dfo_coal_emis_cost == ex_emis);
 	Model.addConstr(EV::shedding_cost == ex_shedd);
 	Model.addConstr(EV::elec_storage_cost == ex_elec_str);
-
+	Model.addConstr(EV::startup_cost == ex_startup);
 	Model.addConstr(exp_Eobj == EV::e_system_cost);
 #pragma endregion
 
 #pragma region Electricity Network Constraints
-	// C1, C2: number of generation units at each node		
+	// C1: number of generation units at each node	
 	for (int n = 0; n < nEnode; n++)
 	{
 		for (int i = 0; i < nPlt; i++)
@@ -780,48 +796,71 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 			{
 				Model.addConstr(EV::Xop[n][i] == -EV::Xdec[n][i] + EV::Xest[n][i]);
 			}
-			//C2: maximum number of each plant type at each node (not necessary)
-			//Model.addConstr(EV::Xop[n][i] <= Plants[i].Umax);
+
+			for (int t = 0; t < Te.size(); t++)
+			{
+				// (w/o UC version) keep this to avoid power generation from hydro-new, dfor, etc.
+				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
+				// (w/o UC version)
+				//			if (t > 0)
+	//			{
+	//				//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
+	//				Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//				Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//			}
+			}
 		}
 	}
 
-	//C3, C4: production limit, ramping	
+	//C2, C3, C4, C5: UC,  production limit, ramping for thermal units (ng, CT, CC, CC-CCS, nuclear)	
 	for (int n = 0; n < nEnode; n++)
 	{
-		for (int t = 0; t < Te.size(); t++)
+		for (int i = 0; i < nPlt; i++)
 		{
-			for (int i = 0; i < nPlt; i++)
+			for (int t = 0; t < Te.size(); t++)
 			{
-				//Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * EV::Xop[n][i]); since we don't consider unit commitment in this model
-				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
-
-				//if (t > 0 && !Setting::heuristics1_active) 
-				if (t > 0)
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
 				{
-					//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
-					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
-					Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
-
+					// UC 1
+					if (t > 0)
+					{
+						Model.addConstr(EV::X[n][t][i] - EV::X[n][t - 1][i] == EV::Xup[n][t][i] - EV::Xdown[n][t][i]);
+					}
+					// UC 2
+					Model.addConstr(EV::X[n][t][i] <= EV::Xop[n][i]);
+					// output limit
+					Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * Plants[i].Pmax * EV::X[n][t][i]);
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::X[n][t][i]);
+					//ramping
+					if (t > 0)
+					{
+						double mx1 = std::max(Plants[i].Pmin, Plants[i].rampU);
+						Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+						Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+					}
 				}
 			}
 		}
 	}
 
-	// C 3.5: max yearly generation for existing plants
-	for (int i = 0; i < nPlt; i++)
-	{
-		GRBLinExpr ex0(0);
-		if (Plants[i].is_exis != 1) { continue; }
 
-		for (int n = 0; n < nEnode; n++)
-		{
-			for (int t = 0; t < Te.size(); t++)
-			{
-				ex0 += time_weight[t] * EV::prod[n][t][i];
-			}
-		}
-		Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
-	}
+	//// C 3.5: max yearly generation for existing plants
+	//for (int i = 0; i < nPlt; i++)
+	//{
+	//	GRBLinExpr ex0(0);
+	//	if (Plants[i].is_exis != 1) { continue; }
+
+	//	for (int n = 0; n < nEnode; n++)
+	//	{
+	//		for (int t = 0; t < Te.size(); t++)
+	//		{
+	//			ex0 += time_weight[t] * EV::prod[n][t][i];
+	//		}
+	//	}
+	//	Model.addConstr(ex0 <= Plants[i].max_yearly_gen);
+	//}
 
 
 
@@ -903,8 +942,8 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
 			}
 			double dem = Enodes[n].demand[Te[t]];
-			
-			
+
+
 			// ignore trans
 			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
 			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
@@ -974,6 +1013,10 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				{
 					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][0] * Plants[i].Pmax * EV::Xop[n][i]);
 				}
+				/*if (Plants[i].type == "hydro"|| Plants[i].type == "hydro-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <=Plants[i].Pmax * EV::Xop[n][i]);
+				}*/
 			}
 		}
 	}

@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
 		Setting::RPS = 0.2;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.2; //0.2,0.3,0.4,
+		Setting::RNG_cap = 0.3; //0.2,0.3,0.4,
 		Setting::cplex_gap = 0.01;  // 2%
 		Setting::CPU_limit = 3600;   // seconds
 	}
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
 	Setting::print_all_vars = false;
-	Setting::use_benders = false;
+	Setting::use_benders = true;
 #pragma endregion
 
 #pragma region  Other parameters   

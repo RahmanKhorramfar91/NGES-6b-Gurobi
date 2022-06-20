@@ -71,6 +71,10 @@ struct EV
 {
 	static GRBVar** Xest; // integer (continues) for plants
 	static GRBVar** Xdec; // integer (continues) for plants
+	static GRBVar*** X;  // number of committed plants
+	static GRBVar*** Xup;
+	static GRBVar*** Xdown;
+
 	static GRBVar** YeCD; // continuous: charge/discharge capacity
 	static GRBVar** YeLev; // continuous: charge/discharge level
 	static GRBVar** YeStr; //
@@ -87,6 +91,7 @@ struct EV
 	static GRBVar est_trans_cost; // cost of establishing new transmission lines
 	static GRBVar decom_cost;
 	static GRBVar fixed_cost;
+	static GRBVar startup_cost;
 	static GRBVar var_cost;
 	static GRBVar thermal_fuel_cost;
 	static GRBVar shedding_cost;
@@ -104,6 +109,7 @@ struct EV
 	static	double val_est_trans_cost;
 	static	double val_decom_cost;
 	static	double val_fixed_cost;
+	static double val_startup_cost;
 	static	double val_var_cost;
 	static	double val_thermal_fuel_cost;
 	static	double val_shedding_cost;
