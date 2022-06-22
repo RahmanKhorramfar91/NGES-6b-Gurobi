@@ -21,13 +21,14 @@ bool Setting::Approach_1_active = true;
 bool Setting::Approach_2_active = false;
 double Setting::RNG_cap;
 int Setting::Case;
-bool Setting::heuristics1_active = false;
+bool Setting::MP_init_heuristic = false;
 bool Setting::warm_start_active = false;
 bool Setting::print_all_vars = false;
 bool Setting::fix_some_E_NG_vars = false;
 double Setting::PGC;
 double Setting::PE;
-bool Setting::use_benders;
+bool Setting::use_benders = false;
+bool Setting::UC_active = false;
 #pragma endregion
 
 int main(int argc, char* argv[])
@@ -60,7 +61,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 2;   // 2, 7, 14, 30, 52, 365
+		Setting::Num_rep_days = 20;   // 2,5, 7,10 14,15,20 30, 52,104, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
@@ -68,17 +69,18 @@ int main(int argc, char* argv[])
 		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
 		Setting::RPS = 0.2;		    // out of 1 (=100%) Renewable Portfolio Share
-		Setting::RNG_cap = 0.3; //0.2,0.3,0.4,
-		Setting::cplex_gap = 0.01;  // 2%
-		Setting::CPU_limit = 3600;   // seconds
+		Setting::RNG_cap = 0.4; //0.2,0.3,0.4,
+		Setting::cplex_gap = 0.01;  // 
+		Setting::CPU_limit = 900;   // seconds
 	}
 
 #pragma region Problem Setting
 	Setting::relax_int_vars = false; // int vars in electricity network
-	Setting::print_results_header = true;
-	Setting::xi_LB_obj = false; // (default = false) 
-	Setting::xi_UB_obj = false;  // (default = false) 
-	//Setting::heuristics1_active = true;
+	Setting::print_results_header = false;
+	Setting::UC_active = false; // only applies to the full problem
+	//Setting::xi_LB_obj = false; // (default = false) 
+	//Setting::xi_UB_obj = false;  // (default = false) 
+	Setting::MP_init_heuristic = false;
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
 	Setting::print_all_vars = false;
@@ -98,7 +100,7 @@ int main(int argc, char* argv[])
 	double coal_price = 92 / 19.26; //https://www.eia.gov/coal/ and https://www.eia.gov/tools/faqs/faq.php?id=72&t=2#:~:text=In%202020%2C%20the%20annual%20average,million%20Btu%20per%20short%20ton.
 	double Nuclear_price = 0.72; // per MMBtu from 2045 ATB 2021
 	double E_curt_cost = 10e3; // $ per MWh;
-	double G_curt_cost = 10e3; // & per MMBtu
+	double G_curt_cost = 1e3; // & per MMBtu
 	double pipe_per_mile = 7e+5;//https://www.gem.wiki/Oil_and_Gas_Pipeline_Construction_Costs
 	int SVL_lifetime = 30; //https://www.hydrogen.energy.gov/pdfs/19001_hydrogen_liquefaction_costs.pdf
 	int pipe_lifespan = 30; // years, https://www.popsci.com/story/environment/oil-gas-pipelines-property/#:~:text=There%20are%20some%203%20million,%2C%20power%20plants%2C%20and%20homes.&text=Those%20pipelines%20have%20an%20average%20lifespan%20of%2050%20years.
@@ -146,6 +148,7 @@ int main(int argc, char* argv[])
 	double elec_UB = 0;
 	double ng_obj;
 	double feas_gap;
+
 
 
 	if (Setting::use_benders)

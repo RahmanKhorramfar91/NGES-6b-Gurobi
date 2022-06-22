@@ -7,17 +7,23 @@ void Benders_Decomposition(GRBEnv* env)
 	double MP_obj = 0; //MP objective in the current iterations
 	int iter = 0;
 	int iter_lim = 0; double gap = 1;
-
+	if (Setting::MP_init_heuristic)
+	{
+		MP_init_heuristic(env);
+	}
+	std::cout << endl;
+	double gap0 = 0.06;
 	while (true)
 	{
-		MP_obj = Master_Problem(Cuts, env);
+		MP_obj = Master_Problem(Cuts, env, MP_obj, gap0); 
+		gap0 =std::max(0.01, gap0 * 0.9);
 		double Dual_stat = Dual_Subproblem(Cuts, env); // 0: unbounded, -1: feasible sol
 		//double gap = std::abs(MP_obj0 - MP_obj1) / MP_obj1;
 
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
-		std::cout << "Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj << endl;
-		if (iter_lim == 10)
+		std::cout << " Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj << endl;
+		if (iter_lim == 3)
 		{
 			Setting::fix_some_E_NG_vars = true;
 			double feas_obj = Integrated_Model(env);
@@ -36,13 +42,10 @@ void Benders_Decomposition(GRBEnv* env)
 	}
 
 
-
-
-
 }
 
 
-double Master_Problem(vector<SP> Cuts, GRBEnv* env)
+double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 {
 	//auto start = chrono::high_resolution_clock::now();
 #pragma region Fetch Data
@@ -167,10 +170,10 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 				Model.addConstr(EV::Xest[n][i] == 0);
 			}
 
-			if (Plants[i].type == "nuclear-new")
+			/*if (Plants[i].type == "nuclear-new")
 			{
 				Model.addConstr(EV::Xest[n][i] == 0);
-			}
+			}*/
 
 			if (Plants[i].is_exis == 1)
 			{
@@ -180,10 +183,28 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 			{
 				Model.addConstr(EV::Xdec[n][i] == 0);
 			}
-
-
 		}
 	}
+
+	if (Setting::MP_init_heuristic)
+	{
+		for (int n = 0; n < nEnode; n++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
+				Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
+				Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
+				for (int t = 0; t < Te.size(); t++)
+				{
+					Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
+					Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
+					Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
+				}
+			}
+		}
+	}
+	Setting::MP_init_heuristic = false;//to only apply in the first iteration
 #pragma endregion
 
 
@@ -310,8 +331,8 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 
 	Model.addConstr(exp_Eobj == EV::e_system_cost);
 	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
+	Model.addConstr(exp_Eobj + exp_NGobj >= MP0_obj);
 #pragma endregion
-
 
 #pragma region MP Electricity local constraints
 	// C1: number of generation units at each node	
@@ -337,49 +358,56 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 			{
 				// (w/o UC version) keep this to avoid power generation from hydro-new, dfor, etc.
 				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
-				// (w/o UC version)
-				//			if (t > 0)
-	//			{
-	//				//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
-	//				Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
-	//				Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
-	//			}
-			}
-		}
-	}
-
-	//C2, C3, C4, C5: UC,  production limit, ramping for thermal units (ng, CT, CC, CC-CCS, nuclear)	
-	for (int n = 0; n < nEnode; n++)
-	{
-		for (int i = 0; i < nPlt; i++)
-		{
-			for (int t = 0; t < Te.size(); t++)
-			{
-				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
-					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
-					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				if (!Setting::UC_active)
 				{
-					// UC 1
+					//(w/o UC version)
 					if (t > 0)
 					{
-						Model.addConstr(EV::X[n][t][i] - EV::X[n][t - 1][i] == EV::Xup[n][t][i] - EV::Xdown[n][t][i]);
-					}
-					// UC 2
-					Model.addConstr(EV::X[n][t][i] <= EV::Xop[n][i]);
-					// output limit
-					Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * Plants[i].Pmax * EV::X[n][t][i]);
-					Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::X[n][t][i]);
-					//ramping
-					if (t > 0)
-					{
-						double mx1 = std::max(Plants[i].Pmin, Plants[i].rampU);
-						Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
-						Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+						//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
+						Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+						Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
 					}
 				}
 			}
 		}
 	}
+
+	if (Setting::UC_active)
+	{
+		//C2, C3, C4, C5: UC,  production limit, ramping for thermal units (ng, CT, CC, CC-CCS, nuclear)	
+		for (int n = 0; n < nEnode; n++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				for (int t = 0; t < Te.size(); t++)
+				{
+					if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+						Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+						Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+					{
+						// UC 1
+						if (t > 0)
+						{
+							Model.addConstr(EV::X[n][t][i] - EV::X[n][t - 1][i] == EV::Xup[n][t][i] - EV::Xdown[n][t][i]);
+						}
+						// UC 2
+						Model.addConstr(EV::X[n][t][i] <= EV::Xop[n][i]);
+						// output limit
+						Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * Plants[i].Pmax * EV::X[n][t][i]);
+						Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::X[n][t][i]);
+						//ramping
+						if (t > 0)
+						{
+							double mx1 = std::max(Plants[i].Pmin, Plants[i].rampU);
+							Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+							Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+						}
+					}
+				}
+			}
+		}
+	}
+
 
 	////C3, C4: production limit, ramping	
 	//for (int n = 0; n < nEnode; n++)
@@ -536,8 +564,27 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 	}
 #pragma endregion
 
+#pragma region VIs
+	for (int t = 0; t < Te.size(); t++)
+	{
+		GRBLinExpr ex_vi(0);
+		double dem = 0;
+		for (int n = 0; n < nEnode; n++)
+		{
+			//GRBLinExpr exp_prod(0);
+			for (int i = 0; i < nPlt; i++) { ex_vi += EV::prod[n][t][i]; }
 
-#pragma region Add cuts
+			//GRBLinExpr ex_store(0);
+			for (int r = 0; r < neSt; r++) { ex_vi += EV::eSdis[n][t][r] - EV::eSch[n][t][r]; }
+
+			dem += Enodes[n].demand[Te[t]];
+			ex_vi += EV::curtE[n][t];
+		}
+		Model.addConstr(ex_vi == dem);
+	}
+#pragma endregion
+
+#pragma region Add cuts from SPs
 	// define the contribution from subproblem
 	//GRBVar Chi = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 
@@ -614,11 +661,10 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 
 #pragma endregion
 
-
 #pragma region Solve MP
 	Model.set(GRB_IntParam_OutputFlag, 0);
 	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
-	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
+	Model.set(GRB_DoubleParam_MIPGap, gap0);
 	Model.optimize();
 	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
 	{
@@ -652,6 +698,9 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 	EV::val_Xop = new double* [nEnode];
 	EV::val_Xest = new double* [nEnode];
 	EV::val_Xdec = new double* [nEnode];
+	EV::val_X = new double** [nEnode];
+	EV::val_Xup = new double** [nEnode];
+	EV::val_Xdown = new double** [nEnode];
 	for (int n = 0; n < nEnode; n++)
 	{
 		EV::val_Xop[n] = new double[nPlt]();
@@ -678,16 +727,25 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env)
 	for (int n = 0; n < nEnode; n++)
 	{
 		EV::val_prod[n] = new double* [Te.size()];
+		EV::val_X[n] = new double* [Te.size()];
+		EV::val_Xup[n] = new double* [Te.size()];
+		EV::val_Xdown[n] = new double* [Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
 			//if (t > periods2print) { break; }
 
 			EV::val_prod[n][t] = new double[nPlt]();
+			EV::val_X[n][t] = new double[nPlt]();
+			EV::val_Xup[n][t] = new double[nPlt]();
+			EV::val_Xdown[n][t] = new double[nPlt]();
 			for (int i = 0; i < nPlt; i++)
 			{
 				EV::val_total_prod[i] += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				total_yearly_prod += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				EV::val_prod[n][t][i] = EV::prod[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_X[n][t][i] = EV::X[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_Xup[n][t][i] = EV::Xup[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_Xdown[n][t][i] = EV::Xdown[n][t][i].get(GRB_DoubleAttr_X);
 			}
 		}
 	}
@@ -1820,11 +1878,1149 @@ double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env)
 }
 
 
+void MP_init_heuristic(GRBEnv* env)
+{
+	//auto start = chrono::high_resolution_clock::now();
+#pragma region Fetch Data
+	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
+{"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
+	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
+{2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };
+	vector<gnode> Gnodes = Params::Gnodes;
+	vector<pipe> PipeLines = Params::PipeLines;
+	vector<enode> Enodes = Params::Enodes;
+	vector<plant> Plants = Params::Plants;
+	vector<eStore> Estorage = Params::Estorage;
+	vector<branch> Branches = Params::Branches;
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
+	vector<int> Tg = Params::Tg;
+	vector<int> Te = Params::Te;
+	vector<int> time_weight = Params::time_weight;
+	double pi = 3.141592;
+	int nGnode = (int)Params::Gnodes.size();
+	double WACC = Params::WACC;
+	int trans_unit_cost = Params::trans_unit_cost;
+	int trans_line_lifespan = Params::trans_line_lifespan;
+	double NG_price = Params::NG_price;
+	double dfo_pric = Params::dfo_pric;
+	double coal_price = Params::coal_price;
+	double nuclear_price = Params::nuclear_price;
+	double E_curt_cost = Params::E_curt_cost;
+	double G_curt_cost = Params::G_curt_cost;
+	double pipe_per_mile = Params::pipe_per_mile;
+	int pipe_lifespan = Params::pipe_lifespan;
+	int battery_lifetime = Params::battery_lifetime;
+	map<int, vector<int>> Le = Params::Le;
+	vector<int> RepDaysCount = Params::RepDaysCount;
+#pragma endregion
 
 
-// validate Benders SP by solving the primal Subproblem
+#pragma region Firts phase: ignore UC vars and network cons.->solve->get Xop vars
+
+#pragma region Initialization: NG module, define vars, etc.
+	GRBModel Model = GRBModel(env);
+	GRBLinExpr exp_NGobj(0);
+	GRBLinExpr exp_Eobj(0);
+
+	Populate_EV_SP(Model);
+	Populate_GV(Model);
+	NG_Module(Model, exp_NGobj);
+
+	// coupling constraints
+	GRBLinExpr ex_xi(0);
+	GRBLinExpr ex_NG_emis(0);
+	GRBLinExpr ex_E_emis(0);
+	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
+
+	//if (Setting::Case == 1)
+	//{
+	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
+	//} else if to next 
+
+	if (Setting::is_xi_given)
+	{
+		//std::cout << "\n\n if xi given" << endl;
+		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
+		Model.addConstr(CV::xi == ex_xi);
+	}
+	else
+	{
+		//std::cout << "else xi given" << endl;
+		Model.addConstr(CV::xi == ex_xi);
+	}
+
+	/*if (Setting::Case == 1)
+	{
+		Model.addConstr(100 == CV::E_emis);
+		Model.addConstr(100 == CV::NG_emis);
+	}*/
+	if (Setting::Case == 2)
+	{
+		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+	if (Setting::Case == 3)
+	{// the original model
+		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+#pragma endregion
+
+#pragma region Set some variables
+	// 1) existing types can not be established because there are new equivalent types
+	// 2) new types cannot be decommissioned
+	// 3) no new wind-offshore on some location (not yet implemented)
+	// 4) no new nuclear
+	// 5) turn off df0/coal/wind-offshore. The data is not correct on wind-offshore, there is no existing wind-offshore in the region
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			//// do not allow establishment off-shore wind and hydro plants
+			//Model.addConstr(EV::Xdec[n][5] == 0);
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore")
+			{
+				Model.addConstr(EV::Xop[n][i] == 0);
+			}
+
+			if (Plants[i].type == "hydro-new")
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+
+			if (Plants[i].type == "wind-offshore-new")
+			{
+				if (n == 0 || n == 2)// except for Massachusetts and Connecticus
+				{
+					continue;
+				}
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+
+			/*if (Plants[i].type == "nuclear-new")
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}*/
+
+			if (Plants[i].is_exis == 1)
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+			else
+			{
+				Model.addConstr(EV::Xdec[n][i] == 0);
+			}
+
+
+		}
+	}
+#pragma endregion
+
+
+#pragma region Objective Function
+	GRBLinExpr ex_est(0);
+	GRBLinExpr ex_decom(0);
+	GRBLinExpr ex_fix(0);
+	GRBLinExpr ex_startup(0);
+	GRBLinExpr ex_var(0);
+	GRBLinExpr ex_thermal_fuel(0);
+	GRBLinExpr ex_emis(0);
+	GRBLinExpr ex_shedd(0);
+	GRBLinExpr ex_trans(0);
+	GRBLinExpr ex_elec_str(0);
+
+
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			// Investment/decommission cost of plants
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore") {
+				continue;
+			}
+			double s1 = (double)std::pow(1.0 / (1 + WACC), Plants[i].lifetime);
+			double capco = WACC / (1 - s1) * Plants[i].Reg_coeffs_per_state[n];
+			ex_est += capco * Plants[i].capex * EV::Xest[n][i];
+			ex_decom += Plants[i].decom_cost * EV::Xdec[n][i];
+		}
+
+		// fixed cost (annual, so no iteration over time)
+		for (int i = 0; i < nPlt; i++)
+		{
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore") {
+				continue;
+			}
+			ex_fix += Plants[i].fix_cost * EV::Xop[n][i];
+		}
+		// var+fuel costs of plants
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+					Plants[i].type == "wind_offshore") {
+					continue;
+				}
+				// var cost
+				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
+
+				// fuel price to be updated later (dollar per thousand cubic feet=MMBTu)
+				// NG fuel is handle in the NG network for case 2 and 3
+				//if (Plants[i].type == "dfo")
+				//{
+				//	ex_thermal_fuel += time_weight[t] * dfo_pric * Plants[i].heat_rate * EV::prod[n][t][i];
+
+				//}
+				//else if (Plants[i].type == "coal")
+				//{
+				//	ex_thermal_fuel += time_weight[t] * coal_price * Plants[i].heat_rate * EV::prod[n][t][i];
+				//}
+				if (Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				{
+					ex_thermal_fuel += time_weight[t] * nuclear_price * Plants[i].heat_rate * EV::prod[n][t][i];
+				}
+				else if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
+				{
+					if (Setting::Case == 1)
+					{
+						ex_thermal_fuel += time_weight[t] * NG_price * Plants[i].heat_rate * EV::prod[n][t][i];
+					}
+				}
+
+				//if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+				//	Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+				//	Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				//{
+				//	// startup cost
+				//	ex_startup += time_weight[t] * Plants[i].startup_cost * EV::Xup[n][t][i];
+				//}
+
+			}
+
+			// load curtailment cost
+			ex_shedd += time_weight[t] * E_curt_cost * EV::curtE[n][t];
+		}
+
+
+		// storage cost
+		for (int r = 0; r < neSt; r++)
+		{
+			double s1 = (double)std::pow(1.0 / (1 + WACC), battery_lifetime);
+			double capco = WACC / (1 - s1);
+			ex_elec_str += capco * Estorage[r].power_cost * EV::YeCD[n][r] + capco * Estorage[r].energy_cost * EV::YeLev[n][r];
+			ex_elec_str += Estorage[r].pFOM * EV::YeCD[n][r] + Estorage[r].eFOM * EV::YeLev[n][r]; // fixed cost per kw per year
+		}
+	}
+
+	// investment cost of transmission lines
+	for (int b = 0; b < Branches.size(); b++)
+	{
+		double s1 = (double)std::pow(1.0 / (1 + WACC), trans_line_lifespan);
+		double capco = WACC / (1 - s1);
+		int fb = Branches[b].from_bus;
+		int tb = Branches[b].to_bus;
+		// find the index of tb in the adj_buses of the fb
+		int tbi = std::find(Enodes[fb].adj_buses.begin(), Enodes[fb].adj_buses.end(), tb) - Enodes[fb].adj_buses.begin();
+		ex_trans += capco * trans_unit_cost * Branches[b].maxFlow * Branches[b].length * EV::Ze[b];
+	}
+	exp_Eobj = ex_est + ex_decom + ex_fix + ex_startup + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
+
+	Model.addConstr(EV::est_cost == ex_est);
+	Model.addConstr(EV::est_trans_cost == ex_trans);
+	Model.addConstr(EV::decom_cost == ex_decom);
+	Model.addConstr(EV::fixed_cost == ex_fix);
+	Model.addConstr(EV::var_cost == ex_var);
+	Model.addConstr(EV::thermal_fuel_cost == ex_thermal_fuel);
+	Model.addConstr(EV::dfo_coal_emis_cost == ex_emis);
+	Model.addConstr(EV::shedding_cost == ex_shedd);
+	Model.addConstr(EV::elec_storage_cost == ex_elec_str);
+	Model.addConstr(EV::startup_cost == ex_startup);
+
+	Model.addConstr(exp_Eobj == EV::e_system_cost);
+	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
+#pragma endregion
+
+
+#pragma region MP Electricity local constraints
+	// C1: number of generation units at each node	
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			// is plant type i part of initial plants types of node n:
+			bool isInd = std::find(Enodes[n].Init_plt_ind.begin(), Enodes[n].Init_plt_ind.end(), i) != Enodes[n].Init_plt_ind.end();
+			if (isInd)
+			{
+				// find the index of plant in the set of Init_plants of the node
+				string tp = pltType2sym[i];
+				int ind1 = std::find(Enodes[n].Init_plt_types.begin(), Enodes[n].Init_plt_types.end(), tp) - Enodes[n].Init_plt_types.begin();
+				Model.addConstr(EV::Xop[n][i] == Enodes[n].Init_plt_count[ind1] - EV::Xdec[n][i] + EV::Xest[n][i]);
+			}
+			else
+			{
+				Model.addConstr(EV::Xop[n][i] == -EV::Xdec[n][i] + EV::Xest[n][i]);
+			}
+
+			for (int t = 0; t < Te.size(); t++)
+			{
+				// (w/o UC version) keep this to avoid power generation from hydro-new, dfor, etc.
+				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
+				// (w/o UC version)
+				if (t > 0)
+				{
+					//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
+					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+					Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+			}
+		}
+	}
+
+	////C2, C3, C4, C5: UC,  production limit, ramping for thermal units (ng, CT, CC, CC-CCS, nuclear)	
+	//for (int n = 0; n < nEnode; n++)
+	//{
+	//	for (int i = 0; i < nPlt; i++)
+	//	{
+	//		for (int t = 0; t < Te.size(); t++)
+	//		{
+	//			if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+	//				Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+	//				Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+	//			{
+	//				// UC 1
+	//				if (t > 0)
+	//				{
+	//					Model.addConstr(EV::X[n][t][i] - EV::X[n][t - 1][i] == EV::Xup[n][t][i] - EV::Xdown[n][t][i]);
+	//				}
+	//				// UC 2
+	//				Model.addConstr(EV::X[n][t][i] <= EV::Xop[n][i]);
+	//				// output limit
+	//				Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * Plants[i].Pmax * EV::X[n][t][i]);
+	//				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::X[n][t][i]);
+	//				//ramping
+	//				if (t > 0)
+	//				{
+	//					double mx1 = std::max(Plants[i].Pmin, Plants[i].rampU);
+	//					Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+	//					Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+
+	// C5, C6: flow limit for electricity
+	//C7: power balance
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			GRBLinExpr exp_prod(0);
+			for (int i = 0; i < nPlt; i++)
+			{
+				exp_prod += EV::prod[n][t][i];
+			}
+			GRBLinExpr exp_trans(0);
+			for (int m : Enodes[n].adj_buses)
+			{
+				// instead of defining a dictionray, one could traverse the entire branches...
+				int key1 = n * 200 + m;
+				// check if this key exist, if not, the other order exisit
+				if (Le.count(key1) == 0)
+				{
+					key1 = m * 200 + n;
+				}
+				//each Le can contain multiple lines
+				for (int l2 : Le[key1])
+				{
+					if (n > m)
+					{
+						exp_trans -= EV::flowE[l2][t];
+					}
+					else
+					{
+						exp_trans += EV::flowE[l2][t];
+					}
+
+				}
+			}
+			GRBLinExpr ex_store(0);
+			for (int r = 0; r < neSt; r++)
+			{
+				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
+			}
+			double dem = Enodes[n].demand[Te[t]];
+
+
+			// ignore trans
+			Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
+			//Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem); //uncomment this line
+		}
+	}
+
+
+	// C8: flow equation
+	// C9: phase angle (theta) limits. already applied in the definition of the variable	
+	// C10: VRE production profile
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				if (Plants[i].type == "solar" || Plants[i].type == "solar-UPV")
+				{
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+				if (Plants[i].type == "wind" || Plants[i].type == "wind-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+				if (Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][0] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+			}
+		}
+	}
+
+
+	// C11: demand curtainlment constraint
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double dem = Enodes[n].demand[Te[t]];
+			//dem = dem/1.896;
+			Model.addConstr(EV::curtE[n][t] <= dem);
+		}
+	}
+
+
+	//C12: RPS constraints
+	GRBLinExpr exp3(0);
+	double total_demand = 0;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			total_demand += time_weight[t] * Enodes[n].demand[Te[t]];
+
+			for (int i = 0; i < nPlt; i++)
+			{
+				//exp2 += time_weight[t] * Plants[i].emis_rate * EV::prod[n][t][i];
+				if (Plants[i].type == "solar" || Plants[i].type == "wind" ||
+					Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new" ||
+					Plants[i].type == "hydro" || Plants[i].type == "solar-UPV" ||
+					Plants[i].type == "wind-new" || Plants[i].type == "hydro-new")
+				{
+					exp3 += time_weight[t] * EV::prod[n][t][i]; // production from VRE
+				}
+			}
+		}
+	}
+	Model.addConstr(exp3 >= Setting::RPS * total_demand);
+
+	// C14,C15,C16 storage constraints
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int r = 0; r < neSt; r++)
+			{
+				/*if (t == Te.size() - 1)
+				{
+					Model.addConstr(EV::eSlev[n][t][r] <= EV::eSlev[n][0][r]);
+				}*/
+				if (t == 0)
+				{
+					Model.addConstr(EV::eSlev[n][t][r] ==
+						Estorage[r].eff_ch * EV::eSch[n][t][r] -
+						(EV::eSdis[n][t][r] / Estorage[r].eff_disCh));
+				}
+				else
+				{
+					Model.addConstr(EV::eSlev[n][t][r] == EV::eSlev[n][t - 1][r] +
+						Estorage[r].eff_ch * EV::eSch[n][t][r] -
+						(EV::eSdis[n][t][r] / Estorage[r].eff_disCh));
+				}
+				Model.addConstr(EV::YeCD[n][r] >= EV::eSdis[n][t][r]);
+				Model.addConstr(EV::YeCD[n][r] >= EV::eSch[n][t][r]);
+				Model.addConstr(EV::YeLev[n][r] >= EV::eSlev[n][t][r]);
+			}
+		}
+	}
+
+	// start and ending of storage should be the same in case of using rep. days
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int r = 0; r < neSt; r++)
+		{
+			for (int k = 0; k < Tg.size(); k++)
+			{
+				int str = k * 24;
+				int end = (k + 1) * 24 - 1;
+				Model.addConstr(EV::eSlev[n][str][r] == EV::eSlev[n][end][r]);
+			}
+		}
+	}
+	// C17: if an storage established or not
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int r = 0; r < neSt; r++)
+		{
+			Model.addConstr(EV::YeLev[n][r] <= 10e8 * EV::YeStr[n][r]);
+			Model.addConstr(EV::YeCD[n][r] <= EV::YeLev[n][r]);
+		}
+	}
+#pragma endregion
+
+#pragma region Solve and get values
+	Model.set(GRB_IntParam_OutputFlag, 0);
+	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
+	Model.optimize();
+	std::cout << "First phase obj: " << Model.get(GRB_DoubleAttr_ObjVal);
+	EV::val_Xop = new double* [nEnode];
+	EV::val_Xest = new double* [nEnode];
+	EV::val_Xdec = new double* [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_Xop[n] = new double[nPlt]();
+		EV::val_Xest[n] = new double[nPlt]();
+		EV::val_Xdec[n] = new double[nPlt]();
+		for (int i = 0; i < nPlt; i++)
+		{
+			EV::val_Xop[n][i] = std::round(EV::Xop[n][i].get(GRB_DoubleAttr_X));
+			EV::val_Xest[n][i] = std::round(EV::Xest[n][i].get(GRB_DoubleAttr_X));
+			EV::val_Xdec[n][i] = std::round(EV::Xdec[n][i].get(GRB_DoubleAttr_X));
+		}
+	}
+#pragma endregion
+
+
+
+#pragma endregion
+
+
+
+#pragma region Second phase: fix Xop -> solve full problem -> get values of X and Xopt to feed MP
+
+#pragma region Initialization: NG module, define vars, etc.
+	//Model.terminate();
+	Model.reset();
+	//Model = new GRBModel();
+	//GRBModel Model = GRBModel(env);
+	exp_NGobj = 0;
+	exp_Eobj = 0;
+
+	Populate_EV_SP(Model);
+	Populate_GV(Model);
+	NG_Module(Model, exp_NGobj);
+
+	// coupling constraints
+	ex_xi = 0;
+	ex_NG_emis = 0;
+	ex_E_emis = 0;
+	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
+
+	//if (Setting::Case == 1)
+	//{
+	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
+	//} else if to next 
+
+	if (Setting::is_xi_given)
+	{
+		//std::cout << "\n\n if xi given" << endl;
+		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
+		Model.addConstr(CV::xi == ex_xi);
+	}
+	else
+	{
+		//std::cout << "else xi given" << endl;
+		Model.addConstr(CV::xi == ex_xi);
+	}
+
+	/*if (Setting::Case == 1)
+	{
+		Model.addConstr(100 == CV::E_emis);
+		Model.addConstr(100 == CV::NG_emis);
+	}*/
+	if (Setting::Case == 2)
+	{
+		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+	if (Setting::Case == 3)
+	{// the original model
+		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+#pragma endregion
+
+#pragma region Set some variables
+	// 1) existing types can not be established because there are new equivalent types
+	// 2) new types cannot be decommissioned
+	// 3) no new wind-offshore on some location (not yet implemented)
+	// 4) no new nuclear
+	// 5) turn off df0/coal/wind-offshore. The data is not correct on wind-offshore, there is no existing wind-offshore in the region
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			//// do not allow establishment off-shore wind and hydro plants
+			//Model.addConstr(EV::Xdec[n][5] == 0);
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore")
+			{
+				Model.addConstr(EV::Xop[n][i] == 0);
+			}
+
+			if (Plants[i].type == "hydro-new")
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+
+			if (Plants[i].type == "wind-offshore-new")
+			{
+				if (n == 0 || n == 2)// except for Massachusetts and Connecticus
+				{
+					continue;
+				}
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+
+			/*if (Plants[i].type == "nuclear-new")
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}*/
+
+			if (Plants[i].is_exis == 1)
+			{
+				Model.addConstr(EV::Xest[n][i] == 0);
+			}
+			else
+			{
+				Model.addConstr(EV::Xdec[n][i] == 0);
+			}
+
+
+		}
+	}
+
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
+			Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
+			Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
+		}
+	}
+
+#pragma endregion
+
+
+#pragma region Objective Function
+	ex_est = 0;
+	ex_decom = 0;
+	ex_fix = 0;
+	ex_startup = 0;
+	ex_var = 0;
+	ex_thermal_fuel = 0;
+	ex_emis = 0;
+	ex_shedd = 0;
+	ex_trans = 0;
+	ex_elec_str = 0;
+
+
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			// Investment/decommission cost of plants
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore") {
+				continue;
+			}
+			double s1 = (double)std::pow(1.0 / (1 + WACC), Plants[i].lifetime);
+			double capco = WACC / (1 - s1) * Plants[i].Reg_coeffs_per_state[n];
+			ex_est += capco * Plants[i].capex * EV::Xest[n][i];
+			ex_decom += Plants[i].decom_cost * EV::Xdec[n][i];
+		}
+
+		// fixed cost (annual, so no iteration over time)
+		for (int i = 0; i < nPlt; i++)
+		{
+			if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+				Plants[i].type == "wind_offshore") {
+				continue;
+			}
+			ex_fix += Plants[i].fix_cost * EV::Xop[n][i];
+		}
+		// var+fuel costs of plants
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				if (Plants[i].type == "dfo" || Plants[i].type == "coal" ||
+					Plants[i].type == "wind_offshore") {
+					continue;
+				}
+				// var cost
+				ex_var += time_weight[t] * Plants[i].var_cost * EV::prod[n][t][i];
+
+				// fuel price to be updated later (dollar per thousand cubic feet=MMBTu)
+				// NG fuel is handle in the NG network for case 2 and 3
+				//if (Plants[i].type == "dfo")
+				//{
+				//	ex_thermal_fuel += time_weight[t] * dfo_pric * Plants[i].heat_rate * EV::prod[n][t][i];
+
+				//}
+				//else if (Plants[i].type == "coal")
+				//{
+				//	ex_thermal_fuel += time_weight[t] * coal_price * Plants[i].heat_rate * EV::prod[n][t][i];
+				//}
+				if (Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				{
+					ex_thermal_fuel += time_weight[t] * nuclear_price * Plants[i].heat_rate * EV::prod[n][t][i];
+				}
+				else if (Plants[i].type == "ng" || Plants[i].type == "CT" || Plants[i].type == "CC" || Plants[i].type == "CC-CCS")
+				{
+					if (Setting::Case == 1)
+					{
+						ex_thermal_fuel += time_weight[t] * NG_price * Plants[i].heat_rate * EV::prod[n][t][i];
+					}
+				}
+
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				{
+					// startup cost
+					ex_startup += time_weight[t] * Plants[i].startup_cost * EV::Xup[n][t][i];
+				}
+
+			}
+
+			// load curtailment cost
+			ex_shedd += time_weight[t] * E_curt_cost * EV::curtE[n][t];
+		}
+
+
+		// storage cost
+		for (int r = 0; r < neSt; r++)
+		{
+			double s1 = (double)std::pow(1.0 / (1 + WACC), battery_lifetime);
+			double capco = WACC / (1 - s1);
+			ex_elec_str += capco * Estorage[r].power_cost * EV::YeCD[n][r] + capco * Estorage[r].energy_cost * EV::YeLev[n][r];
+			ex_elec_str += Estorage[r].pFOM * EV::YeCD[n][r] + Estorage[r].eFOM * EV::YeLev[n][r]; // fixed cost per kw per year
+		}
+	}
+
+	// investment cost of transmission lines
+	for (int b = 0; b < Branches.size(); b++)
+	{
+		double s1 = (double)std::pow(1.0 / (1 + WACC), trans_line_lifespan);
+		double capco = WACC / (1 - s1);
+		int fb = Branches[b].from_bus;
+		int tb = Branches[b].to_bus;
+		// find the index of tb in the adj_buses of the fb
+		int tbi = std::find(Enodes[fb].adj_buses.begin(), Enodes[fb].adj_buses.end(), tb) - Enodes[fb].adj_buses.begin();
+		ex_trans += capco * trans_unit_cost * Branches[b].maxFlow * Branches[b].length * EV::Ze[b];
+	}
+	exp_Eobj = ex_est + ex_decom + ex_fix + ex_startup + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
+
+	Model.addConstr(EV::est_cost == ex_est);
+	Model.addConstr(EV::est_trans_cost == ex_trans);
+	Model.addConstr(EV::decom_cost == ex_decom);
+	Model.addConstr(EV::fixed_cost == ex_fix);
+	Model.addConstr(EV::var_cost == ex_var);
+	Model.addConstr(EV::thermal_fuel_cost == ex_thermal_fuel);
+	Model.addConstr(EV::dfo_coal_emis_cost == ex_emis);
+	Model.addConstr(EV::shedding_cost == ex_shedd);
+	Model.addConstr(EV::elec_storage_cost == ex_elec_str);
+	Model.addConstr(EV::startup_cost == ex_startup);
+
+	Model.addConstr(exp_Eobj == EV::e_system_cost);
+	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
+#pragma endregion
+
+
+#pragma region Electricity Network Constraints
+	// C1: number of generation units at each node	
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			// is plant type i part of initial plants types of node n:
+			bool isInd = std::find(Enodes[n].Init_plt_ind.begin(), Enodes[n].Init_plt_ind.end(), i) != Enodes[n].Init_plt_ind.end();
+			if (isInd)
+			{
+				// find the index of plant in the set of Init_plants of the node
+				string tp = pltType2sym[i];
+				int ind1 = std::find(Enodes[n].Init_plt_types.begin(), Enodes[n].Init_plt_types.end(), tp) - Enodes[n].Init_plt_types.begin();
+				Model.addConstr(EV::Xop[n][i] == Enodes[n].Init_plt_count[ind1] - EV::Xdec[n][i] + EV::Xest[n][i]);
+			}
+			else
+			{
+				Model.addConstr(EV::Xop[n][i] == -EV::Xdec[n][i] + EV::Xest[n][i]);
+			}
+
+			for (int t = 0; t < Te.size(); t++)
+			{
+				// (w/o UC version) keep this to avoid power generation from hydro-new, dfor, etc.
+				Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::Xop[n][i]);
+				// (w/o UC version)
+				//			if (t > 0)
+	//			{
+	//				//Model.addConstr(Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i] >= -EV::prod[n][t][i] + EV::prod[n][t - 1][i]);
+	//				Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//				Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * EV::Xop[n][i]);
+	//			}
+			}
+		}
+	}
+
+	//C2, C3, C4, C5: UC,  production limit, ramping for thermal units (ng, CT, CC, CC-CCS, nuclear)	
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int i = 0; i < nPlt; i++)
+		{
+			for (int t = 0; t < Te.size(); t++)
+			{
+				if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new")
+				{
+					// UC 1
+					if (t > 0)
+					{
+						Model.addConstr(EV::X[n][t][i] - EV::X[n][t - 1][i] == EV::Xup[n][t][i] - EV::Xdown[n][t][i]);
+					}
+					// UC 2
+					Model.addConstr(EV::X[n][t][i] <= EV::Xop[n][i]);
+					// output limit
+					Model.addConstr(EV::prod[n][t][i] >= Plants[i].Pmin * Plants[i].Pmax * EV::X[n][t][i]);
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].Pmax * EV::X[n][t][i]);
+					//ramping
+					if (t > 0)
+					{
+						double mx1 = std::max(Plants[i].Pmin, Plants[i].rampU);
+						Model.addConstr(EV::prod[n][t][i] - EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+						Model.addConstr(-EV::prod[n][t][i] + EV::prod[n][t - 1][i] <= Plants[i].rampU * Plants[i].Pmax * (EV::X[n][t][i] - EV::Xup[n][t][i]) + mx1 * Plants[i].Pmax * EV::Xup[n][t][i]);
+					}
+				}
+			}
+		}
+	}
+
+	// C5, C6: flow limit for electricity
+	for (int br = 0; br < nBr; br++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			if (Branches[br].is_exist == 1)
+			{
+				Model.addConstr(EV::flowE[br][t] <= Branches[br].maxFlow);
+				Model.addConstr(-EV::flowE[br][t] <= Branches[br].maxFlow);
+				//Model.addConstr(-Branches[br].maxFlow <= EV::flowE[br][t]);
+			}
+			else
+			{
+				Model.addConstr(EV::flowE[br][t] <= Branches[br].maxFlow * EV::Ze[br]);
+				Model.addConstr(-EV::flowE[br][t] <= Branches[br].maxFlow * EV::Ze[br]);
+				//Model.addConstr(-Branches[br].maxFlow * EV::Ze[br] <= EV::flowE[br][t]);
+			}
+		}
+	}
+
+	// peak demand
+	double max_dem = 0;
+	for (int t = 0; t < Te.size(); t++)
+	{
+		double demm = 0;
+		for (int n = 0; n < nEnode; n++)
+		{
+			demm += Enodes[n].demand[Te[t]];
+		}
+		if (demm > max_dem)
+		{
+			max_dem = demm;
+		}
+	}
+	//C7: power balance
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			GRBLinExpr exp_prod(0);
+			for (int i = 0; i < nPlt; i++)
+			{
+				exp_prod += EV::prod[n][t][i];
+			}
+			GRBLinExpr exp_trans(0);
+			for (int m : Enodes[n].adj_buses)
+			{
+				// instead of defining a dictionray, one could traverse the entire branches...
+				int key1 = n * 200 + m;
+				// check if this key exist, if not, the other order exisit
+				if (Le.count(key1) == 0)
+				{
+					key1 = m * 200 + n;
+				}
+				//each Le can contain multiple lines
+				for (int l2 : Le[key1])
+				{
+					if (n > m)
+					{
+						exp_trans -= EV::flowE[l2][t];
+					}
+					else
+					{
+						exp_trans += EV::flowE[l2][t];
+					}
+
+				}
+			}
+			GRBLinExpr ex_store(0);
+			for (int r = 0; r < neSt; r++)
+			{
+				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
+			}
+			double dem = Enodes[n].demand[Te[t]];
+
+
+			// ignore trans
+			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
+			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
+
+			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem); //uncomment this line
+		}
+	}
+	// C8: flow equation
+	int ebr = 0;
+	for (int br = 0; br < Branches.size(); br++)
+	{
+		int fb = Branches[br].from_bus;
+		int tb = Branches[br].to_bus;
+		for (int t = 0; t < Te.size(); t++)
+		{
+			//if (Branches[br].is_exist == 1 && !Setting::heuristics1_active)
+			if (Branches[br].is_exist == 1)
+			{
+				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) == 0);
+				//Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= 1e-4);
+				//Model.addConstr(-1e-2 <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
+			}
+			//else if (!Setting::heuristics1_active)
+			else
+			{
+				double Big_M = std::abs(Branches[br].suscep * 24);
+				Model.addConstr(EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= Big_M * (1 - EV::Ze[br]));
+				Model.addConstr(-EV::flowE[br][t] + Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]) <= Big_M * (1 - EV::Ze[br]));
+				//Model.addConstr(-Big_M * (1 - EV::Ze[br]) <= EV::flowE[br][t] - Branches[br].suscep * (EV::theta[tb][t] - EV::theta[fb][t]));
+			}
+		}
+	}
+
+	// C9: phase angle (theta) limits. already applied in the definition of the variable
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 1; t < Te.size(); t++)
+		{
+			Model.addConstr(EV::theta[n][t] <= pi);
+			Model.addConstr(-EV::theta[n][t] <= pi);
+			//Model.addConstr(-pi <= EV::theta[n][t]);
+		}
+	}
+
+	// C9.5: phase angle for reference node (node 0) is zero
+	for (int t = 0; t < Te.size(); t++)
+	{
+		Model.addConstr(EV::theta[0][t] == 0);
+	}
+
+	// C10: VRE production profile
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				if (Plants[i].type == "solar" || Plants[i].type == "solar-UPV")
+				{
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+				if (Plants[i].type == "wind" || Plants[i].type == "wind-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][n] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+				if (Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][0] * Plants[i].Pmax * EV::Xop[n][i]);
+				}
+				/*if (Plants[i].type == "hydro"|| Plants[i].type == "hydro-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <=Plants[i].Pmax * EV::Xop[n][i]);
+				}*/
+			}
+		}
+	}
+
+
+	// C11: demand curtainlment constraint
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			double dem = Enodes[n].demand[Te[t]];
+			//dem = dem/1.896;
+			Model.addConstr(EV::curtE[n][t] <= dem);
+		}
+	}
+
+	//C12: RPS constraints
+	exp3 = 0;
+	total_demand = 0;
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			total_demand += time_weight[t] * Enodes[n].demand[Te[t]];
+
+			for (int i = 0; i < nPlt; i++)
+			{
+				//exp2 += time_weight[t] * Plants[i].emis_rate * EV::prod[n][t][i];
+				if (Plants[i].type == "solar" || Plants[i].type == "wind" ||
+					Plants[i].type == "wind_offshore" || Plants[i].type == "wind-offshore-new" ||
+					Plants[i].type == "hydro" || Plants[i].type == "solar-UPV" ||
+					Plants[i].type == "wind-new" || Plants[i].type == "hydro-new")
+				{
+					exp3 += time_weight[t] * EV::prod[n][t][i]; // production from VRE
+				}
+			}
+		}
+	}
+	Model.addConstr(exp3 >= Setting::RPS * total_demand);
+
+	// C14,C15,C16 storage constraints
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int t = 0; t < Te.size(); t++)
+		{
+			for (int r = 0; r < neSt; r++)
+			{
+				/*if (t == Te.size() - 1)
+				{
+					Model.addConstr(EV::eSlev[n][t][r] <= EV::eSlev[n][0][r]);
+				}*/
+				if (t == 0)
+				{
+					Model.addConstr(EV::eSlev[n][t][r] ==
+						Estorage[r].eff_ch * EV::eSch[n][t][r] -
+						(EV::eSdis[n][t][r] / Estorage[r].eff_disCh));
+				}
+				else
+				{
+					Model.addConstr(EV::eSlev[n][t][r] == EV::eSlev[n][t - 1][r] +
+						Estorage[r].eff_ch * EV::eSch[n][t][r] -
+						(EV::eSdis[n][t][r] / Estorage[r].eff_disCh));
+				}
+				Model.addConstr(EV::YeCD[n][r] >= EV::eSdis[n][t][r]);
+				Model.addConstr(EV::YeCD[n][r] >= EV::eSch[n][t][r]);
+				Model.addConstr(EV::YeLev[n][r] >= EV::eSlev[n][t][r]);
+			}
+		}
+	}
+
+	// start and ending of storage should be the same in case of using rep. days
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int r = 0; r < neSt; r++)
+		{
+			for (int k = 0; k < Tg.size(); k++)
+			{
+				int str = k * 24;
+				int end = (k + 1) * 24 - 1;
+				Model.addConstr(EV::eSlev[n][str][r] == EV::eSlev[n][end][r]);
+			}
+		}
+	}
+
+
+	// C17: if an storage established or not
+	for (int n = 0; n < nEnode; n++)
+	{
+		for (int r = 0; r < neSt; r++)
+		{
+			Model.addConstr(EV::YeLev[n][r] <= 10e8 * EV::YeStr[n][r]);
+			Model.addConstr(EV::YeCD[n][r] <= EV::YeLev[n][r]);
+		}
+	}
+
+
+
+#pragma endregion
+
+
+#pragma region Solve and get values for UC vars
+	Model.set(GRB_IntParam_OutputFlag, 0);
+	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap * 3);
+	Model.optimize();
+	std::cout << "\n Second phase obj: " << Model.get(GRB_DoubleAttr_ObjVal);
+	EV::val_X = new double** [nEnode];
+	EV::val_Xup = new double** [nEnode];
+	EV::val_Xdown = new double** [nEnode];
+	for (int n = 0; n < nEnode; n++)
+	{
+		EV::val_X[n] = new double* [Te.size()];
+		EV::val_Xup[n] = new double* [Te.size()];
+		EV::val_Xdown[n] = new double* [Te.size()];
+		for (int t = 0; t < Te.size(); t++)
+		{
+			EV::val_X[n][t] = new double[nPlt]();
+			EV::val_Xup[n][t] = new double[nPlt]();
+			EV::val_Xdown[n][t] = new double[nPlt]();
+			for (int i = 0; i < nPlt; i++)
+			{
+				EV::val_X[n][t][i] = EV::X[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_Xup[n][t][i] = EV::Xup[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_Xdown[n][t][i] = EV::Xdown[n][t][i].get(GRB_DoubleAttr_X);
+			}
+		}
+	}
+#pragma endregion
+
+
+
+
+
+#pragma endregion
+
+}
+
+
+
 void SP_flow_Upper()
 {
+	// a heuristic to get the upper bound for flow variables in 
+	// the power balance equation, to be used to add a cut in case all operational
+	// variables are in the SP
+
 	double eps = 0.00;
 	//auto start = chrono::high_resolution_clock::now();
 #pragma region Fetch Data

@@ -11,8 +11,8 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	int nPlt = (int)Plants.size();
 	vector<int> Te = Params::Te;
 #pragma endregion
-
-	Setting::heuristics1_active = true; Setting::relax_int_vars = true;
+	//Setting::heuristics1_active = false;
+	Setting::relax_int_vars = true;
 	Setting::warm_start_active = false;
 
 #pragma region Feasible solution for electricity network
@@ -47,7 +47,8 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	double gg3 = Model.get(GRB_DoubleAttr_BoundVio);
 	double gg = Model.get(GRB_DoubleAttr_MinBound);*/
 	Get_EV_vals(Model);
-	Setting::heuristics1_active = false; Setting::relax_int_vars = false;
+	//Setting::heuristics1_active = false;
+	Setting::relax_int_vars = false;
 	env->~GRBEnv();
 	Model.~GRBModel();
 
@@ -158,13 +159,13 @@ void Electricy_Network_Model(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 
-#pragma region apply heuristic to generate a warm-start solution
-	double elec_UB = 0;
+#pragma region (deleted) apply heuristic to generate a warm-start solution
+	/*double elec_UB = 0;
 	if (Setting::warm_start_active)
 	{
 		double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
 		elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
-	}
+	}*/
 #pragma endregion
 
 	/*GRBEnv* env = 0;
@@ -193,7 +194,7 @@ void Electricy_Network_Model(GRBEnv* env)
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
-	
+
 
 #pragma region Solve the model
 
@@ -278,7 +279,7 @@ void NG_Network_Model(GRBEnv* env)
 double Integrated_Model(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
-	 
+
 #pragma region apply heuristic to generate a warm-start solution
 	double elec_UB = 0;
 	if (Setting::warm_start_active)

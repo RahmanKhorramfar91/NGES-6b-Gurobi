@@ -215,7 +215,7 @@ void Get_EV_vals(GRBModel Model)
 	}
 	for (int i = 0; i < nPlt; i++)
 	{
-		if (i==14)
+		if (i == 14)
 		{
 			int gg = 0;
 		}
@@ -764,6 +764,8 @@ void Print_Results(double Elapsed_time, double status)
 		fid << "RPS" << ",";
 		fid << "RNG_cap" << ",";
 		fid << "MIO Gap:" << ",";
+		fid << "Benders" << ",";
+		fid << "UC Active" << ",";
 
 		// electricity
 		fid << "Total_E_cost" << ",";
@@ -841,6 +843,8 @@ void Print_Results(double Elapsed_time, double status)
 		return;
 	}
 	fid << EV::MIP_gap << ",";
+	fid << Setting::use_benders << ",";
+	fid << Setting::UC_active << ",";
 	fid << EV::val_e_system_cost << ",";
 	fid << EV::val_est_cost << ",";
 	fid << EV::val_est_trans_cost << ",";
@@ -924,6 +928,8 @@ void Print_Results(double Elapsed_time, double status)
 	fid2 << "\tEmis_lim: " << Setting::Emis_lim;
 	fid2 << "\tRPS: " << Setting::RPS;
 	fid2 << "\tRNG_cap: " << Setting::RNG_cap;
+	fid2 << "\tBenders: " << Setting::use_benders;
+	fid2 << "\tUC Active: " << Setting::UC_active;
 
 
 	fid2 << "\n\t Elapsed time: " << Elapsed_time << endl;

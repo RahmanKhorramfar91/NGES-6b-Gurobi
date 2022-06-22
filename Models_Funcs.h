@@ -38,11 +38,12 @@ struct Setting
 	static bool print_NG_vars;
 	static bool relax_int_vars;
 	static bool print_results_header;
-	static bool heuristics1_active;
+	static bool MP_init_heuristic;
 	static bool warm_start_active;
 	static bool print_all_vars;
 	static bool fix_some_E_NG_vars;
 	static bool use_benders;
+	static bool UC_active;
 
 	static bool is_xi_given;
 	static double xi_val;
@@ -101,7 +102,9 @@ struct EV
 	static GRBVar e_system_cost;
 
 
-
+	static double*** val_X;
+	static double*** val_Xup;
+	static double*** val_Xdown;
 	static double*** val_prod;
 	static double*** val_eSch;
 	static double*** val_eSdis;
@@ -282,8 +285,11 @@ struct SP
 	//static GRBVar** phi;
 	//static GRBVar omega;
 };
+
+
 int Primal_subproblem(vector<SP>& Cuts);// return status
-double Master_Problem(vector<SP> Cuts, GRBEnv* env);
+double Master_Problem(vector<SP> Cuts, GRBEnv* env,double MP_obj,double gap0);
+void MP_init_heuristic(GRBEnv* env);
 void Benders_Decomposition(GRBEnv* env);
 double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env);
 void SP_flow_Upper();
