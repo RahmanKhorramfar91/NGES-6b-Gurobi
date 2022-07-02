@@ -2412,9 +2412,7 @@ void MP_init_heuristic(GRBEnv* env)
 
 #pragma endregion
 
-
-
-#pragma region Second phase: fix Xop -> solve full problem -> get values of X and Xopt to feed MP
+#pragma region Second phase: fix Xop -> solve full problem -> get values of UC vars (X) and Xopt to feed MP
 
 #pragma region Initialization: NG module, define vars, etc.
 	//Model.terminate();

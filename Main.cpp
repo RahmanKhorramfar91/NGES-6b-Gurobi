@@ -6,6 +6,7 @@ bool Setting::print_E_vars = false;
 bool Setting::print_NG_vars = false;
 bool Setting::print_results_header = true;
 bool Setting::relax_int_vars = false;
+bool Setting::relax_UC_vars = false;
 bool Setting::is_xi_given = false;
 double Setting::xi_val;
 bool Setting::xi_UB_obj = false;
@@ -58,33 +59,37 @@ int main(int argc, char* argv[])
 		Setting::RNG_cap = atof(argv[9]);
 		Setting::cplex_gap = atof(argv[10]);  // 1%
 		Setting::CPU_limit = atoi(argv[11]);   // seconds
+		Setting::UC_active = atoi(argv[12]);
+		Setting::use_benders = atoi(argv[13]);
+		Setting::relax_UC_vars = atoi(argv[14]);
 	}
 	else
 	{
-		Setting::Num_rep_days = 20;   // 2,5, 7,10 14,15,20 30, 52,104, 365
+		Setting::Num_rep_days = 2;   // 2,5, 7,10 14,15,20 30, 52,104, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = false;
 		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
-		Setting::RPS = 0.2;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RPS = 0.5;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.4; //0.2,0.3,0.4,
 		Setting::cplex_gap = 0.01;  // 
-		Setting::CPU_limit = 900;   // seconds
+		Setting::CPU_limit = 900;   // seconds		
+		Setting::UC_active = true; // only applies to the full problem
+		Setting::use_benders = false;
+		Setting::relax_int_vars = false; // int vars in electricity network
 	}
 
 #pragma region Problem Setting
-	Setting::relax_int_vars = false; // int vars in electricity network
-	Setting::print_results_header = false;
-	Setting::UC_active = false; // only applies to the full problem
+	Setting::print_results_header = true;
 	//Setting::xi_LB_obj = false; // (default = false) 
 	//Setting::xi_UB_obj = false;  // (default = false) 
 	Setting::MP_init_heuristic = false;
 	Setting::warm_start_active = false;
 	bool only_feas_sol = false;
 	Setting::print_all_vars = false;
-	Setting::use_benders = true;
+
 #pragma endregion
 
 #pragma region  Other parameters   

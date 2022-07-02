@@ -37,6 +37,7 @@ struct Setting
 	static bool print_E_vars;
 	static bool print_NG_vars;
 	static bool relax_int_vars;
+	static bool relax_UC_vars;
 	static bool print_results_header;
 	static bool MP_init_heuristic;
 	static bool warm_start_active;

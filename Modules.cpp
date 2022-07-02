@@ -371,7 +371,7 @@ void  Populate_EV_SP(GRBModel& Model)
 			EV::X[n][t] = Model.addVars(nPlt, GRB_INTEGER);
 			EV::Xup[n][t] = Model.addVars(nPlt, GRB_INTEGER);
 			EV::Xdown[n][t] = Model.addVars(nPlt, GRB_INTEGER);
-			if (Setting::relax_int_vars)
+			if (Setting::relax_int_vars || Setting::relax_UC_vars)
 			{
 				EV::X[n][t] = Model.addVars(nPlt, GRB_CONTINUOUS);
 				EV::Xup[n][t] = Model.addVars(nPlt, GRB_CONTINUOUS);
@@ -466,20 +466,14 @@ void Populate_GV(GRBModel& Model)
 #pragma region NG network DVs
 
 	// NG vars
-
+	GV::Zg = Model.addVars(nPipe, GRB_BINARY);
 	if (Setting::relax_int_vars)
 	{
-		GV::Xstr = Model.addVars(nSVL, GRB_CONTINUOUS);
 		GV::Zg = Model.addVars(nPipe, GRB_CONTINUOUS);
-	}
-	else
-	{
-		GV::Xstr = Model.addVars(nSVL, GRB_BINARY);
-		GV::Zg = Model.addVars(nPipe, GRB_BINARY);
 	}
 
 	GV::Xvpr = Model.addVars(nSVL, GRB_CONTINUOUS);
-
+	GV::Xstr = Model.addVars(nSVL, GRB_CONTINUOUS);
 	GV::Sstr = new GRBVar * [nSVL];
 	GV::Svpr = new GRBVar * [nSVL];
 	GV::Sliq = new GRBVar * [nSVL];
