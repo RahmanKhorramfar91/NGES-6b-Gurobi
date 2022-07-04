@@ -728,7 +728,7 @@ void Print_Results(double Elapsed_time, double status)
 
 		for (int i = 0; i < neSt; i++)
 		{
-			fid0 << "\neSlev[" << i << "] " << ",";
+			fid0 << "\n eSlev[" << i << "] " << ",";
 
 			for (int t = 0; t < Te.size(); t++)
 			{
@@ -765,7 +765,10 @@ void Print_Results(double Elapsed_time, double status)
 		fid << "RNG_cap" << ",";
 		fid << "MIO Gap:" << ",";
 		fid << "Benders" << ",";
+		fid << "Benders Multicut" << ",";
 		fid << "UC Active" << ",";
+		fid << "UC Vars Relaxed" << ",";
+
 
 		// electricity
 		fid << "Total_E_cost" << ",";
@@ -844,7 +847,9 @@ void Print_Results(double Elapsed_time, double status)
 	}
 	fid << EV::MIP_gap << ",";
 	fid << Setting::use_benders << ",";
+	fid << Setting::multi_cut_active << ",";	
 	fid << Setting::UC_active << ",";
+	fid << Setting::relax_UC_vars << ",";
 	fid << EV::val_e_system_cost << ",";
 	fid << EV::val_est_cost << ",";
 	fid << EV::val_est_trans_cost << ",";
@@ -929,7 +934,9 @@ void Print_Results(double Elapsed_time, double status)
 	fid2 << "\tRPS: " << Setting::RPS;
 	fid2 << "\tRNG_cap: " << Setting::RNG_cap;
 	fid2 << "\tBenders: " << Setting::use_benders;
+	fid2 << "\tBenders Multicut: " << Setting::multi_cut_active;
 	fid2 << "\tUC Active: " << Setting::UC_active;
+	fid2 << "\tUC vars relaxed: " << Setting::relax_UC_vars;
 
 
 	fid2 << "\n\t Elapsed time: " << Elapsed_time << endl;

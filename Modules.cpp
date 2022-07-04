@@ -266,15 +266,12 @@ void  Populate_EV_SP(GRBModel& Model)
 	EV::YeCD = new GRBVar * [nEnode]; // continuous: charge/discharge capacity
 	EV::YeLev = new GRBVar * [nEnode]; // continuous: charge/discharge level
 	EV::YeStr = new GRBVar * [nEnode]; // (binary) if a storage is established
-
-	if (Setting::relax_int_vars)
+	EV::Ze = Model.addVars(nBr, GRB_BINARY);
+	/*if (Setting::relax_int_vars)
 	{
 		EV::Ze = Model.addVars(nBr, GRB_CONTINUOUS);
 	}
-	else
-	{
-		EV::Ze = Model.addVars(nBr, GRB_BINARY);
-	}
+	*/
 
 	EV::theta = new GRBVar * [nEnode]; // continuous phase angle
 	EV::curtE = new GRBVar * [nEnode]; // continuous curtailment variable
@@ -323,30 +320,6 @@ void  Populate_EV_SP(GRBModel& Model)
 			EV::Xdec[n] = Model.addVars(nPlt, GRB_CONTINUOUS);
 			EV::Xop[n] = Model.addVars(nPlt, GRB_CONTINUOUS);
 		}
-		//else
-		//{
-		//	EV::Xest[n] = Model.addVars(nPlt);
-		//	EV::Xop[n] = Model.addVars(nPlt);
-		//	EV::Xdec[n] = Model.addVars(nPlt);
-		//	for (int i = 0; i < nPlt; i++)
-		//	{
-		//		/*if (Plants[i].type == "solar-UPV" || Plants[i].type == "wind-new")
-		//		{
-		//			EV::Xest[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-		//			EV::Xdec[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-		//			EV::Xop[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-		//		}
-		//		else
-		//		{
-		//			EV::Xest[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
-		//			EV::Xdec[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
-		//			EV::Xop[n][i] = Model.addVar(0, GRB_INFINITY, 0, GRB_INTEGER);
-		//		}*/
-		//	}
-		//}
-
-
-		//Ze[n] = GRBVarArray(env, Enodes[n].adj_buses.size(), 0, IloInfinity, ILOBOOL);
 		EV::theta[n] = Model.addVars((int)Te.size());
 		EV::curtE[n] = Model.addVars((int)Te.size(), GRB_CONTINUOUS);
 		EV::YeCD[n] = Model.addVars(neSt, GRB_CONTINUOUS);
@@ -467,10 +440,10 @@ void Populate_GV(GRBModel& Model)
 
 	// NG vars
 	GV::Zg = Model.addVars(nPipe, GRB_BINARY);
-	if (Setting::relax_int_vars)
+	/*if (Setting::relax_int_vars)
 	{
 		GV::Zg = Model.addVars(nPipe, GRB_CONTINUOUS);
-	}
+	}*/
 
 	GV::Xvpr = Model.addVars(nSVL, GRB_CONTINUOUS);
 	GV::Xstr = Model.addVars(nSVL, GRB_CONTINUOUS);
@@ -636,12 +609,12 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
 				Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
 				Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
-				/*for (int t = 0; t < Te.size(); t++)
+				for (int t = 0; t < Te.size(); t++)
 				{
 					Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
 					Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
 					Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
-				}*/
+				}
 			}
 		}
 
@@ -1121,51 +1094,22 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 #pragma endregion
 
 #pragma region Valid Inequality
-	//C7: power balance
-	for (int n = 0; n < nEnode; n++)
+	for (int t = 0; t < Te.size(); t++)
 	{
-		for (int t = 0; t < Te.size(); t++)
+		GRBLinExpr ex_vi(0);
+		double dem = 0;
+		for (int n = 0; n < nEnode; n++)
 		{
-			GRBLinExpr exp_prod(0);
-			for (int i = 0; i < nPlt; i++)
-			{
-				exp_prod += EV::prod[n][t][i];
-			}
-			GRBLinExpr exp_trans(0);
-			for (int m : Enodes[n].adj_buses)
-			{
-				// instead of defining a dictionray, one could traverse the entire branches...
-				int key1 = n * 200 + m;
-				// check if this key exist, if not, the other order exisit
-				if (Le.count(key1) == 0)
-				{
-					key1 = m * 200 + n;
-				}
-				//each Le can contain multiple lines
-				for (int l2 : Le[key1])
-				{
-					if (Branches[l2].is_exist == 1)
-					{
-						exp_trans += Branches[l2].maxFlow;
-					}
-					else
-					{
-						exp_trans += Branches[l2].maxFlow * EV::Ze[l2];
-					}
+			//GRBLinExpr exp_prod(0);
+			for (int i = 0; i < nPlt; i++) { ex_vi += EV::prod[n][t][i]; }
 
-				}
-			}
-			GRBLinExpr ex_store(0);
-			for (int r = 0; r < neSt; r++)
-			{
-				ex_store += EV::eSdis[n][t][r] - EV::eSch[n][t][r];
-			}
-			double dem = Enodes[n].demand[Te[t]];
-			//dem = dem/1.896;
-			// ignore trans
-			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
-			//Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] >= dem);
+			//GRBLinExpr ex_store(0);
+			for (int r = 0; r < neSt; r++) { ex_vi += EV::eSdis[n][t][r] - EV::eSch[n][t][r]; }
+
+			dem += Enodes[n].demand[Te[t]];
+			ex_vi += EV::curtE[n][t];
 		}
+		Model.addConstr(ex_vi == dem);
 	}
 #pragma endregion
 

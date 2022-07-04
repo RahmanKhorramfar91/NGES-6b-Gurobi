@@ -1,51 +1,58 @@
 #include"Models_Funcs.h";
 
-void Benders_Decomposition(GRBEnv* env)
+double Benders_Decomposition(GRBEnv* env)
 {
 	auto start = chrono::high_resolution_clock::now();
 	vector<SP> Cuts;
 	double MP_obj = 0; //MP objective in the current iterations
 	int iter = 0;
 	int iter_lim = 0; double gap = 1;
-	if (Setting::MP_init_heuristic)
-	{
-		MP_init_heuristic(env);
-	}
+	double LB_obj = 0;
+	LB_obj = MP_init_heuristic(env);
+
 	std::cout << endl;
-	double gap0 = 0.06;
+	double gap0 = 0.05;
+	double feas_obj = 0;
+	int K = 3;
 	while (true)
 	{
-		MP_obj = Master_Problem(Cuts, env, MP_obj, gap0); 
-		gap0 =std::max(0.01, gap0 * 0.9);
+		MP_obj = Master_Problem(Cuts, env, 0, gap0, LB_obj);
+		gap0 = std::max(0.01, gap0 * 0.6);
 		double Dual_stat = Dual_Subproblem(Cuts, env); // 0: unbounded, -1: feasible sol
 		//double gap = std::abs(MP_obj0 - MP_obj1) / MP_obj1;
 
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 		std::cout << " Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj << endl;
-		if (iter_lim == 3)
+		if (iter_lim == K)
 		{
 			Setting::fix_some_E_NG_vars = true;
-			double feas_obj = Integrated_Model(env);
+			feas_obj = Integrated_Model(env);
 			gap = (feas_obj - MP_obj) / MP_obj;
 			Setting::fix_some_E_NG_vars = false;
 			iter_lim = 0;
+			K = std::max(1, int(K * 0.8));
 		}
 
 
-		if (gap < 0.01)
+		if (gap < 0.005)
 		{
+			break;
+		}
+		if (Elapsed>Setting::CPU_limit)
+		{
+			EV::MIP_gap = gap;
 			break;
 		}
 
 		iter++; iter_lim++;
 	}
 
-
+	return feas_obj;
 }
 
 
-double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
+double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0, double LB_obj)
 {
 	//auto start = chrono::high_resolution_clock::now();
 #pragma region Fetch Data
@@ -108,29 +115,11 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
 	//} else if to next 
 
-	if (Setting::is_xi_given)
-	{
-		//std::cout << "\n\n if xi given" << endl;
-		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
-		Model.addConstr(CV::xi == ex_xi);
-	}
-	else
-	{
-		//std::cout << "else xi given" << endl;
-		Model.addConstr(CV::xi == ex_xi);
-	}
 
-	/*if (Setting::Case == 1)
-	{
-		Model.addConstr(100 == CV::E_emis);
-		Model.addConstr(100 == CV::NG_emis);
-	}*/
-	if (Setting::Case == 2)
-	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
-		Model.addConstr(ex_E_emis == CV::E_emis);
-		Model.addConstr(ex_NG_emis == CV::NG_emis);
-	}
+	Model.addConstr(CV::xi == ex_xi);
+
+
+
 	if (Setting::Case == 3)
 	{// the original model
 		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
@@ -186,25 +175,25 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 		}
 	}
 
-	if (Setting::MP_init_heuristic)
-	{
-		for (int n = 0; n < nEnode; n++)
-		{
-			for (int i = 0; i < nPlt; i++)
-			{
-				Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
-				Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
-				Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
-				for (int t = 0; t < Te.size(); t++)
-				{
-					Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
-					Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
-					Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
-				}
-			}
-		}
-	}
-	Setting::MP_init_heuristic = false;//to only apply in the first iteration
+	//if (Setting::MP_init_heuristic)
+	//{
+	//	for (int n = 0; n < nEnode; n++)
+	//	{
+	//		for (int i = 0; i < nPlt; i++)
+	//		{
+	//			Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
+	//			Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
+	//			Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
+	//			for (int t = 0; t < Te.size(); t++)
+	//			{
+	//				Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
+	//				Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
+	//				Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
+	//			}
+	//		}
+	//	}
+	//}
+	//Setting::MP_init_heuristic = false;//to only apply in the first iteration
 #pragma endregion
 
 
@@ -469,6 +458,10 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 				{
 					Model.addConstr(EV::prod[n][t][i] <= Plants[i].zonal_profile[Te[t]][0] * Plants[i].Pmax * EV::Xop[n][i]);
 				}
+				/*if (Plants[i].type == "hydro"|| Plants[i].type == "hydro-new")
+				{
+					Model.addConstr(EV::prod[n][t][i] <=Plants[i].Pmax * EV::Xop[n][i]);
+				}*/
 			}
 		}
 	}
@@ -484,7 +477,6 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 			Model.addConstr(EV::curtE[n][t] <= dem);
 		}
 	}
-
 
 	//C12: RPS constraints
 	GRBLinExpr exp3(0);
@@ -553,6 +545,8 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 			}
 		}
 	}
+
+
 	// C17: if an storage established or not
 	for (int n = 0; n < nEnode; n++)
 	{
@@ -582,6 +576,8 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 		}
 		Model.addConstr(ex_vi == dem);
 	}
+
+	Model.addConstr(exp_Eobj + exp_NGobj >= LB_obj);
 #pragma endregion
 
 #pragma region Add cuts from SPs
@@ -592,7 +588,7 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 	//Model.addConstr(Chi[0] >= ex_cut);
 	//Chi[0] = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 
-	bool Multi_cut = false;  // multicut implementation or single cut
+	//bool Multi_cut = false;  // multicut implementation or single cut
 	GRBLinExpr ex_cut(0);
 	for (int c = 0; c < Cuts.size(); c++)
 	{
@@ -646,13 +642,13 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0)
 					ex_cut -= Big_M * (1 - EV::Ze[b]) * Cuts[c].dual_val_zeta12[b][t];
 				}
 			}
-			if (Multi_cut)
+			if (Setting::multi_cut_active == true)
 			{
 				Model.addConstr(ex_cut <= 0); // all cuts are feasibility cuts
 				ex_cut.clear();
 			}
 		}
-		if (!Multi_cut)
+		if (Setting::multi_cut_active == false)
 		{
 			Model.addConstr(ex_cut <= 0); // all cuts are feasibility cuts
 			ex_cut.clear();
@@ -1878,8 +1874,109 @@ double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env)
 }
 
 
-void MP_init_heuristic(GRBEnv* env)
+double MP_init_heuristic(GRBEnv* env)
 {
+	// replace UC commitment constraints and variables
+	// relax integrality of Xop, Xest, Xdec
+	// solve and get a lower bound soluton
+
+#pragma region Fetch Data
+	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
+{"solar", 2},{"wind", 3},{"wind_offshore", 4},{"hydro", 5},{"coal",6},{"nuclear",7},
+		{"CT",8},{"CC",9},{"CC-CCS",10},{"solar-UPV",11},{"wind-new",12},
+		{"wind-offshore-new",13},{"hydro-new",14},{"nuclear-new",15} };
+	std::map<int, string> pltType2sym = { {0,"ng"},{1,"dfo"},
+{2,"solar"},{3,"wind"},{4,"wind_offshore"},{5,"hydro"},{6,"coal"},{7,"nuclear"} };
+	vector<gnode> Gnodes = Params::Gnodes;
+	vector<pipe> PipeLines = Params::PipeLines;
+	vector<enode> Enodes = Params::Enodes;
+	vector<plant> Plants = Params::Plants;
+	vector<eStore> Estorage = Params::Estorage;
+	vector<branch> Branches = Params::Branches;
+	int nEnode = (int)Params::Enodes.size();
+	int nPlt = (int)Params::Plants.size();
+	int nBr = (int)Params::Branches.size();
+	int neSt = (int)Params::Estorage.size();
+	vector<int> Tg = Params::Tg;
+	vector<int> Te = Params::Te;
+	vector<int> time_weight = Params::time_weight;
+	double pi = 3.141592;
+	int nGnode = (int)Params::Gnodes.size();
+	double WACC = Params::WACC;
+	int trans_unit_cost = Params::trans_unit_cost;
+	int trans_line_lifespan = Params::trans_line_lifespan;
+	double NG_price = Params::NG_price;
+	double dfo_pric = Params::dfo_pric;
+	double coal_price = Params::coal_price;
+	double nuclear_price = Params::nuclear_price;
+	double E_curt_cost = Params::E_curt_cost;
+	double G_curt_cost = Params::G_curt_cost;
+	double pipe_per_mile = Params::pipe_per_mile;
+	int pipe_lifespan = Params::pipe_lifespan;
+	int battery_lifetime = Params::battery_lifetime;
+	map<int, vector<int>> Le = Params::Le;
+	vector<int> RepDaysCount = Params::RepDaysCount;
+#pragma endregion
+	Setting::UC_active = false; // only applies to the full problem
+	Setting::relax_int_vars = true; // int vars (but not binary vars) in electricity network
+
+	GRBModel Model = GRBModel(env);
+	GRBLinExpr exp_NGobj(0);
+	GRBLinExpr exp_Eobj(0);
+	Populate_EV_SP(Model);
+	Elec_Module(Model, exp_Eobj);
+
+	Populate_GV(Model);
+	NG_Module(Model, exp_NGobj);
+
+
+	Setting::UC_active = true; // only applies to the full problem
+	Setting::relax_int_vars = false; // int vars (but not binary vars) in electricity network
+
+	// coupling constraints
+	GRBLinExpr ex_xi(0);
+	GRBLinExpr ex_NG_emis(0);
+	GRBLinExpr ex_E_emis(0);
+	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
+
+
+	Model.addConstr(CV::xi == ex_xi);
+
+	if (Setting::Case == 3)
+	{// the original model
+		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+
+	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
+
+#pragma region Solve the model
+	Model.set(GRB_IntParam_OutputFlag, 0);
+	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
+	//Model.set(GRB_IntParam_DualReductions, 0);
+
+	Model.optimize();
+	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
+	{
+		std::cout << "Failed to LB problem !!" << endl;
+		std::cout << Model.get(GRB_IntAttr_Status);
+		return -1;
+	}
+	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
+	std::cout << "LB obj: " << obj_val;
+
+#pragma endregion
+
+	return obj_val;
+}
+
+void MP_init_heuristic2(GRBEnv* env)
+{
+	// this is what I tried before but didn't seem to work good. 
+	// this method generates a feasiblt solution to be fed to the MP in the first iteration
+	// as a warm start solution
 	//auto start = chrono::high_resolution_clock::now();
 #pragma region Fetch Data
 	std::map<string, int> sym2pltType = { {"ng",0},{"dfo", 1},
