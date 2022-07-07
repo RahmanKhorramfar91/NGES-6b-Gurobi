@@ -9,7 +9,7 @@ void NG_Network_Model(GRBEnv* env);
 
 
 
-double Integrated_Model(GRBEnv* env);
+double Integrated_Model(GRBEnv* env,double gap0);
 
 double DGSP(GRBEnv* env);
 double DESP(GRBEnv* env);
@@ -137,10 +137,13 @@ struct EV
 	static double** val_Xdec;
 	static double* val_Ze;
 	static double** val_YeStr;
-	static double MIP_gap;
 	static double** val_curtE;
 	static double*** val_eSlev;
 	static double** val_theta;
+
+
+	static double MIP_gap;
+	static double Benders_iter;
 
 
 };
@@ -290,7 +293,7 @@ struct SP
 
 
 int Primal_subproblem(vector<SP>& Cuts);// return status
-double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP_obj, double gap0, double LB_obj);
+double Master_Problem(vector<SP> Cuts, GRBEnv* env, double CPU_time, double gap0, double LB_obj,double &MP_gap);
 double MP_init_heuristic(GRBEnv* env);
 double Benders_Decomposition(GRBEnv* env);
 double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env);

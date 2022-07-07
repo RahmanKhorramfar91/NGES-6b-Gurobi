@@ -62,7 +62,6 @@ double*** EV::val_X;
 double*** EV::val_Xup;
 double*** EV::val_Xdown;
 double* EV::val_Ze;
-double EV::MIP_gap;
 double** EV::val_YeStr;
 double** EV::val_curtE;
 double*** EV::val_eSlev;
@@ -70,7 +69,8 @@ double*** EV::val_eSdis;
 double*** EV::val_eSch;
 double** EV::val_theta;
 
-
+double EV::MIP_gap;
+double EV::Benders_iter;
 
 #pragma endregion
 
@@ -609,12 +609,12 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
 				Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
 				Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
-				for (int t = 0; t < Te.size(); t++)
+				/*for (int t = 0; t < Te.size(); t++)
 				{
 					Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
 					Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
 					Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
-				}
+				}*/
 			}
 		}
 
@@ -1115,20 +1115,19 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 
 #pragma region add the warm start solution
 	//if (Setting::warm_start_active && !Setting::heuristics1_active)
-	if (Setting::warm_start_active)
-
+	if (Setting::warm_start_active && Setting::use_benders)
 	{
 		for (int n = 0; n < nEnode; n++)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
 				//Model.set(GRB_DoubleAttr_Start, EV::Xop[n],EV::val_Xopt[n],nPlt);
-				EV::Xop[n][i].set(GRB_DoubleAttr_Start, EV::val_Xop[n][i]);
-				EV::Xest[n][i].set(GRB_DoubleAttr_Start, EV::val_Xest[n][i]);
-				EV::Xdec[n][i].set(GRB_DoubleAttr_Start, EV::val_Xdec[n][i]);
+				//EV::Xop[n][i].set(GRB_DoubleAttr_Start, EV::val_Xop[n][i]);
+				//EV::Xest[n][i].set(GRB_DoubleAttr_Start, EV::val_Xest[n][i]);
+				//EV::Xdec[n][i].set(GRB_DoubleAttr_Start, EV::val_Xdec[n][i]);
 				for (int t = 0; t < Te.size(); t++)
 				{
-					EV::prod[n][t][i].set(GRB_DoubleAttr_Start, EV::val_prod[n][t][i]);
+					EV::X[n][t][i].set(GRB_DoubleAttr_Start, EV::val_X[n][t][i]);
 				}
 			}
 		}

@@ -183,17 +183,20 @@ void Get_EV_vals(GRBModel Model)
 	}
 
 	EV::val_prod = new double** [nEnode];
+	EV::val_X = new double** [nEnode];
 	double total_yearly_prod = 0;
 	EV::val_total_prod = new double[nPlt]();
 	double flowGE = 0;
 	for (int n = 0; n < nEnode; n++)
 	{
 		EV::val_prod[n] = new double* [Te.size()];
+		EV::val_X[n] = new double* [Te.size()];
 		for (int t = 0; t < Te.size(); t++)
 		{
 			//if (t > periods2print) { break; }
 
 			EV::val_prod[n][t] = new double[nPlt]();
+			EV::val_X[n][t] = new double[nPlt]();
 			for (int i = 0; i < nPlt; i++)
 			{
 				/*
@@ -205,6 +208,7 @@ void Get_EV_vals(GRBModel Model)
 				EV::val_total_prod[i] += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				total_yearly_prod += time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
 				EV::val_prod[n][t][i] = EV::prod[n][t][i].get(GRB_DoubleAttr_X);
+				EV::val_X[n][t][i] = EV::X[n][t][i].get(GRB_DoubleAttr_X);
 				//if (prodS[n][t][i] > 10e-3)
 				//{
 				//	//	std::cout << "prod[" << n << "][" << t << "][" << i << "] = " << prodS[n][t][i] << endl;
@@ -621,7 +625,6 @@ void Get_GV_vals(GRBModel Model)
 
 
 
-
 void Print_Results(double Elapsed_time, double status)
 {
 #pragma region Fetch Data
@@ -663,11 +666,14 @@ void Print_Results(double Elapsed_time, double status)
 	int em_lim = 100 * (Setting::Emis_lim);
 	int rps = 100 * (Setting::RPS);
 	int rng = 100 * Setting::RNG_cap;
-	string name = "Rep " + std::to_string(Setting::Num_rep_days) +
+	/*string name = "Rep " + std::to_string(Setting::Num_rep_days) +
 		"-A1" + "-case " + std::to_string(Setting::Case) + "-xi_given " + std::to_string(is_given)
 		+ "-emis_lim " + std::to_string(em_lim) + "-RPS " + std::to_string(rps)
+		+ "-RNG " + std::to_string(rng) + ".csv";*/
+	string name = "Rep " + std::to_string(Setting::Num_rep_days) +
+		+ "-case " + std::to_string(Setting::Case) 
+		+ "-emis_lim " + std::to_string(em_lim) + "-RPS " + std::to_string(rps)
 		+ "-RNG " + std::to_string(rng) + ".csv";
-
 
 	if (Setting::print_all_vars)
 	{
@@ -766,6 +772,7 @@ void Print_Results(double Elapsed_time, double status)
 		fid << "MIO Gap:" << ",";
 		fid << "Benders" << ",";
 		fid << "Benders Multicut" << ",";
+		fid << "Benders Iter" << ",";
 		fid << "UC Active" << ",";
 		fid << "UC Vars Relaxed" << ",";
 
@@ -841,13 +848,15 @@ void Print_Results(double Elapsed_time, double status)
 	fid << Setting::Emis_lim << ",";
 	fid << Setting::RPS << ",";
 	fid << Setting::RNG_cap << ",";
-	if (status == -1)// problem is infeasible
-	{
-		return;
-	}
+	//if (status == -1)// problem is infeasible
+	//{
+	//	fid.close();
+	//	return;
+	//}
 	fid << EV::MIP_gap << ",";
 	fid << Setting::use_benders << ",";
-	fid << Setting::multi_cut_active << ",";	
+	fid << Setting::multi_cut_active << ",";
+	fid << EV::Benders_iter << ",";
 	fid << Setting::UC_active << ",";
 	fid << Setting::relax_UC_vars << ",";
 	fid << EV::val_e_system_cost << ",";

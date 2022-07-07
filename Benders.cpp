@@ -8,16 +8,29 @@ double Benders_Decomposition(GRBEnv* env)
 	int iter = 0;
 	int iter_lim = 0; double gap = 1;
 	double LB_obj = 0;
-	LB_obj = MP_init_heuristic(env);
+	double feas_obj = 0;
+	
+	MP_obj = Master_Problem(Cuts, env, 3600, 0.08, LB_obj, MP_obj);
+	Setting::fix_some_E_NG_vars = true;
+	feas_obj = Integrated_Model(env,0.05);
+	Setting::fix_some_E_NG_vars = false;
+	Setting::warm_start_active = true;
+
+	//LB_obj = MP_init_heuristic(env);
 
 	std::cout << endl;
-	double gap0 = 0.05;
-	double feas_obj = 0;
-	int K = 3;
+	double gap0 = 0.06;
+
+	int K = 1;
+	double MP_gap = 0;
 	while (true)
 	{
-		MP_obj = Master_Problem(Cuts, env, 0, gap0, LB_obj);
-		gap0 = std::max(0.01, gap0 * 0.6);
+		gap0 = std::max(0.01, gap0 * 0.8);
+		if (iter_lim == K - 1)
+		{
+			gap0 = 0.01;
+		}
+		MP_obj = Master_Problem(Cuts, env, 3600, gap0, LB_obj, MP_gap);
 		double Dual_stat = Dual_Subproblem(Cuts, env); // 0: unbounded, -1: feasible sol
 		//double gap = std::abs(MP_obj0 - MP_obj1) / MP_obj1;
 
@@ -26,20 +39,24 @@ double Benders_Decomposition(GRBEnv* env)
 		std::cout << " Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj << endl;
 		if (iter_lim == K)
 		{
+			if (MP_gap > 0.0101)
+			{
+				return -1;
+			}
 			Setting::fix_some_E_NG_vars = true;
-			feas_obj = Integrated_Model(env);
-			gap = (feas_obj - MP_obj) / MP_obj;
+			feas_obj = Integrated_Model(env,Setting::cplex_gap);
+			gap = (feas_obj - MP_obj) / feas_obj;
 			Setting::fix_some_E_NG_vars = false;
 			iter_lim = 0;
-			K = std::max(1, int(K * 0.8));
+			K = std::max(1, int(K * 0.6));
 		}
+		EV::Benders_iter++;
 
-
-		if (gap < 0.005)
+		if (gap < 0.01)
 		{
 			break;
 		}
-		if (Elapsed>Setting::CPU_limit)
+		if (Elapsed > Setting::CPU_limit)
 		{
 			EV::MIP_gap = gap;
 			break;
@@ -52,7 +69,7 @@ double Benders_Decomposition(GRBEnv* env)
 }
 
 
-double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0, double LB_obj)
+double Master_Problem(vector<SP> Cuts, GRBEnv* env, double CPU_time, double gap0, double LB_obj, double& MP_gap)
 {
 	//auto start = chrono::high_resolution_clock::now();
 #pragma region Fetch Data
@@ -320,7 +337,7 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0,
 
 	Model.addConstr(exp_Eobj == EV::e_system_cost);
 	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
-	Model.addConstr(exp_Eobj + exp_NGobj >= MP0_obj);
+
 #pragma endregion
 
 #pragma region MP Electricity local constraints
@@ -592,7 +609,10 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0,
 	GRBLinExpr ex_cut(0);
 	for (int c = 0; c < Cuts.size(); c++)
 	{
-
+		/*if (c==1)
+		{
+			continue;
+		}*/
 		for (int t = 0; t < Te.size(); t++)
 		{
 			for (int n = 0; n < nEnode; n++)
@@ -657,9 +677,40 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0,
 
 #pragma endregion
 
+
+#pragma region Add warm start solution
+	if (Setting::warm_start_active)
+	{
+		for (int n = 0; n < nEnode; n++)
+		{
+			for (int i = 0; i < nPlt; i++)
+			{
+				//Model.set(GRB_DoubleAttr_Start, EV::Xop[n],EV::val_Xop[n],nPlt);
+				EV::Xop[n][i].set(GRB_DoubleAttr_Start, EV::val_Xop[n][i]);
+				EV::Xest[n][i].set(GRB_DoubleAttr_Start, EV::val_Xest[n][i]);
+				EV::Xdec[n][i].set(GRB_DoubleAttr_Start, EV::val_Xdec[n][i]);
+				for (int t = 0; t < Te.size(); t++)
+				{
+					//EV::prod[n][t][i].set(GRB_DoubleAttr_Start, EV::val_prod[n][t][i]);
+					EV::X[n][t][i].set(GRB_DoubleAttr_Start, EV::val_X[n][t][i]);
+				}
+			}
+		}
+		for (int b = 0; b < nBr; b++)
+		{
+			EV::Ze[b].set(GRB_DoubleAttr_Start, EV::val_Ze[b]);
+			GV::Zg[b].set(GRB_DoubleAttr_Start, GV::val_Zg[b]);
+		}
+		Model.update();
+	}
+#pragma endregion
+
+
+
+
 #pragma region Solve MP
 	Model.set(GRB_IntParam_OutputFlag, 0);
-	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model.set(GRB_DoubleParam_TimeLimit, CPU_time);
 	Model.set(GRB_DoubleParam_MIPGap, gap0);
 	Model.optimize();
 	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
@@ -669,12 +720,16 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double MP0_obj, double gap0,
 	}
 
 	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
-	double gap = 0;
+
 	if (!Setting::relax_int_vars)
 	{
-		double gap = Model.get(GRB_DoubleAttr_MIPGap);
+		MP_gap = Model.get(GRB_DoubleAttr_MIPGap);
 	}
 
+	if (MP_gap > 0.1)
+	{
+		return -1;
+	}
 	//auto end = chrono::high_resolution_clock::now();
 	//double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 	//std::cout << "Elapsed time: " << Elapsed << endl;
@@ -1952,8 +2007,8 @@ double MP_init_heuristic(GRBEnv* env)
 	Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
 
 #pragma region Solve the model
-	Model.set(GRB_IntParam_OutputFlag, 0);
-	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	//Model.set(GRB_IntParam_OutputFlag, 0);
+	Model.set(GRB_DoubleParam_TimeLimit, 600);
 	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
 	//Model.set(GRB_IntParam_DualReductions, 0);
 
@@ -1964,7 +2019,8 @@ double MP_init_heuristic(GRBEnv* env)
 		std::cout << Model.get(GRB_IntAttr_Status);
 		return -1;
 	}
-	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
+	double obj_val = Model.get(GRB_DoubleAttr_ObjBound);
+	//double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
 	std::cout << "LB obj: " << obj_val;
 
 #pragma endregion

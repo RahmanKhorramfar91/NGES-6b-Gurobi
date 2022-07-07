@@ -276,17 +276,17 @@ void NG_Network_Model(GRBEnv* env)
 	Get_GV_vals(Model);
 }
 
-double Integrated_Model(GRBEnv* env)
+double Integrated_Model(GRBEnv* env,double gap0)
 {
 	auto start = chrono::high_resolution_clock::now();
 
 #pragma region apply heuristic to generate a warm-start solution
-	double elec_UB = 0;
-	if (Setting::warm_start_active)
-	{
-		double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
-		elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
-	}
+	//double elec_UB = 0;
+	//if (Setting::warm_start_active)
+	//{
+	//	double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
+	//	elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
+	//}
 #pragma endregion
 	/*GRBEnv* env = 0;
 	env = new GRBEnv();*/
@@ -352,16 +352,16 @@ double Integrated_Model(GRBEnv* env)
 	else
 	{
 		Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
-		if (Setting::warm_start_active)
+		/*if (Setting::warm_start_active)
 		{
 			Model.addConstr(exp_Eobj + exp_NGobj <= elec_UB);
-		}
+		}*/
 	}
 
 #pragma region Solve the model
-	//Model.set(GRB_IntParam_OutputFlag, 0);
+	Model.set(GRB_IntParam_OutputFlag, 0);
 	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
-	Model.set(GRB_DoubleParam_MIPGap, Setting::cplex_gap);
+	Model.set(GRB_DoubleParam_MIPGap, gap0);
 	//Model.set(GRB_IntParam_DualReductions, 0);
 
 	Model.optimize();

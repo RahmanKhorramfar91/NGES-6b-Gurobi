@@ -67,17 +67,17 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		Setting::Num_rep_days = 7;   // 2,5, 7,10 14,15,20 30, 52,104, 365
+		Setting::Num_rep_days = 30;   // 2,5, 7,10 14,15,20 30, 52,104, 365
 		Setting::Approach_1_active = true; // approach 1: integrated, 2: decoupled 
 		Setting::Approach_2_active = false; // default = false
 		Setting::Case = 3; //1: indep. networks, 2: only E emission, 3:joint planning
 		Setting::is_xi_given = false;
 		Setting::xi_val = 0.0;//0.01,0.05, 0.1,0.15,0.2,;
 		Setting::Emis_lim = 0.2;    // xPE= tons  (for case 2: 9%PE~20% of EE (elec emission),  
-		Setting::RPS = 0.5;		    // out of 1 (=100%) Renewable Portfolio Share
+		Setting::RPS = 0.6;		    // out of 1 (=100%) Renewable Portfolio Share
 		Setting::RNG_cap = 0.4; //0.2,0.3,0.4,
 		Setting::cplex_gap = 0.01;  // 
-		Setting::CPU_limit = 900;   // seconds		
+		Setting::CPU_limit = 10800;   // seconds		
 		Setting::UC_active = true; // only applies to the full problem
 		Setting::relax_UC_vars = false;
 		Setting::relax_int_vars = false; // int vars (but not binary vars) in electricity network
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 	//Setting::xi_UB_obj = false;  // (default = false) 
 
 	bool only_feas_sol = false;
-	Setting::print_all_vars = false;
+	Setting::print_all_vars = true;
 
 #pragma endregion
 
@@ -201,12 +201,12 @@ int main(int argc, char* argv[])
 		std::cout << "case 3 by approach 1" << endl;
 		bool ap2 = Setting::Approach_2_active;
 		Setting::Approach_2_active = false;
-		double total_cost = Integrated_Model(env);
+		double total_cost = Integrated_Model(env,Setting::cplex_gap);
 		auto end = chrono::high_resolution_clock::now();
 		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
 		Print_Results(Elapsed, total_cost);
-		if (Setting::xi_LB_obj) { xiLB1 = Integrated_Model(env); }
-		if (Setting::xi_UB_obj) { xiUB1 = Integrated_Model(env); }
+		if (Setting::xi_LB_obj) { xiLB1 = Integrated_Model(env, Setting::cplex_gap); }
+		if (Setting::xi_UB_obj) { xiUB1 = Integrated_Model(env, Setting::cplex_gap); }
 		start = chrono::high_resolution_clock::now();
 		Setting::Approach_2_active = ap2;
 	}
