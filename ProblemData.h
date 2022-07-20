@@ -17,6 +17,7 @@
 
 using namespace std;
 void Read_rep_days(string name, vector<int>& Rep, vector<int>& RepCount);
+
 struct enode
 {
 	int num;
@@ -68,7 +69,7 @@ struct plant
 	double emis_rate;//ton/MMBTU
 	double heat_rate;//MMBTU/MWh
 	int lifetime; // year
-	int decom_cost;
+	double decom_cost;
 	double Pmax;	// nameplate capacity
 	double Pmin; // minimum stable output
 	double rampU;
@@ -82,7 +83,7 @@ struct plant
 	vector<vector<double>> zonal_profile;
 	vector<double> Reg_coeffs_per_state;
 
-	plant(string t, int n, int ise,double capex, int f, int v, double emi, double hr, int lt, int dec,
+	plant(string t, int n, int ise,double capex, int f, int v, double emi, double hr, int lt, double dec,
 		double pmax, double pmin, double ru, double strCost, double strFuel)
 	{
 		this->type = t;

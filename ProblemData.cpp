@@ -200,7 +200,7 @@ vector<plant> plant::read_new_plant_data(string name)
 		double h, emis_rate;
 		iss >> type >> n >> ise >> capex >> f >> v >> emi >> hr >> lt >> dec >> pmax >> pmin >> ru >> strCost >> strFuel;
 		//iss >> type >> n >> capex >>pmax>>pmin>>ru>>rd>> fix_cost >> var_cost >> h >> emis_rate >> decom_cost >> emis_cost >> lifespan;
-		plant np(type, (int)n, (int)ise, capex, (int)f, (int)v, emi, hr, (int)lt, (int)dec, pmax, pmin, ru, strCost, strFuel);
+		plant np(type, (int)n, (int)ise, capex, (int)f, (int)v, emi, hr, (int)lt, dec, pmax, pmin, ru, strCost, strFuel);
 		NewPlants.push_back(np);
 	}
 	fid.close();

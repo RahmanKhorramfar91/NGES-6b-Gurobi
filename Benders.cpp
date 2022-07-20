@@ -9,11 +9,16 @@ double Benders_Decomposition(GRBEnv* env)
 	int iter_lim = 0; double gap = 1;
 	double LB_obj = 0;
 	double feas_obj = 0;
-	
+
 	MP_obj = Master_Problem(Cuts, env, 3600, 0.08, LB_obj, MP_obj);
+	//bool org_UC_status = Setting::UC_active;
+	//Setting::UC_active = false;
+	//Integrated_Model(env, 0.06);
+	//Setting::UC_active = org_UC_status;
 	Setting::fix_some_E_NG_vars = true;
-	feas_obj = Integrated_Model(env,0.05);
+	feas_obj = Integrated_Model(env, 0.08);
 	Setting::fix_some_E_NG_vars = false;
+	EV::Benders_iter++;
 	Setting::warm_start_active = true;
 
 	//LB_obj = MP_init_heuristic(env);
@@ -25,18 +30,17 @@ double Benders_Decomposition(GRBEnv* env)
 	double MP_gap = 0;
 	while (true)
 	{
+		MP_obj = Master_Problem(Cuts, env, 3600, gap0, LB_obj, MP_gap);
 		gap0 = std::max(0.01, gap0 * 0.8);
 		if (iter_lim == K - 1)
 		{
 			gap0 = 0.01;
 		}
-		MP_obj = Master_Problem(Cuts, env, 3600, gap0, LB_obj, MP_gap);
+
 		double Dual_stat = Dual_Subproblem(Cuts, env); // 0: unbounded, -1: feasible sol
 		//double gap = std::abs(MP_obj0 - MP_obj1) / MP_obj1;
 
-		auto end = chrono::high_resolution_clock::now();
-		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
-		std::cout << " Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj << endl;
+		
 		if (iter_lim == K)
 		{
 			if (MP_gap > 0.0101)
@@ -44,7 +48,7 @@ double Benders_Decomposition(GRBEnv* env)
 				return -1;
 			}
 			Setting::fix_some_E_NG_vars = true;
-			feas_obj = Integrated_Model(env,Setting::cplex_gap);
+			feas_obj = Integrated_Model(env, Setting::cplex_gap);
 			gap = (feas_obj - MP_obj) / feas_obj;
 			Setting::fix_some_E_NG_vars = false;
 			iter_lim = 0;
@@ -52,6 +56,9 @@ double Benders_Decomposition(GRBEnv* env)
 		}
 		EV::Benders_iter++;
 
+		auto end = chrono::high_resolution_clock::now();
+		double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
+		std::cout << " Elapsed time: " << Elapsed << "\t Iteration: " << iter << "\t MP Obj: " << MP_obj <<"\t UB: "<<feas_obj<< endl;
 		if (gap < 0.01)
 		{
 			break;
@@ -139,7 +146,7 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double CPU_time, double gap0
 
 	if (Setting::Case == 3)
 	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis + ex_NG_emis <=(1-Setting::Emis_redu_goal) * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
@@ -704,8 +711,6 @@ double Master_Problem(vector<SP> Cuts, GRBEnv* env, double CPU_time, double gap0
 		Model.update();
 	}
 #pragma endregion
-
-
 
 
 #pragma region Solve MP
@@ -1999,7 +2004,7 @@ double MP_init_heuristic(GRBEnv* env)
 
 	if (Setting::Case == 3)
 	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_redu_goal * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
@@ -2114,13 +2119,13 @@ void MP_init_heuristic2(GRBEnv* env)
 	}*/
 	if (Setting::Case == 2)
 	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis <=(1- Setting::Emis_redu_goal) * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
 	if (Setting::Case == 3)
 	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis + ex_NG_emis <=(1- Setting::Emis_redu_goal) * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
@@ -2609,13 +2614,13 @@ void MP_init_heuristic2(GRBEnv* env)
 	}*/
 	if (Setting::Case == 2)
 	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis <=(1- Setting::Emis_redu_goal) * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
 	if (Setting::Case == 3)
 	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
+		Model.addConstr(ex_E_emis + ex_NG_emis <=(1- Setting::Emis_redu_goal) * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
 	}
@@ -4039,7 +4044,7 @@ int Primal_subproblem(vector<SP>& Cuts)
 	//	}
 	//}
 
-	//double rem = Setting::Emis_lim * Setting::PE;
+	//double rem = Setting::Emis_redu_goal * Setting::PE;
 
 	//for (int k = 0; k < nGnode; k++)
 	//{
@@ -4106,7 +4111,7 @@ int Primal_subproblem(vector<SP>& Cuts)
 	//	}
 	//}
 
-	//rem = Setting::Emis_lim * Setting::PE;
+	//rem = Setting::Emis_redu_goal * Setting::PE;
 
 	//for (int k = 0; k < nGnode; k++)
 	//{

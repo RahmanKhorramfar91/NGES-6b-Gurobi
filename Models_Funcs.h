@@ -9,7 +9,7 @@ void NG_Network_Model(GRBEnv* env);
 
 
 
-double Integrated_Model(GRBEnv* env,double gap0);
+double Integrated_Model(GRBEnv* env, double gap0);
 
 double DGSP(GRBEnv* env);
 double DESP(GRBEnv* env);
@@ -55,7 +55,7 @@ struct Setting
 	static double CPU_limit;
 
 	static int Num_rep_days;
-	static double Emis_lim;
+	static double Emis_redu_goal;
 	static double RPS;
 	static bool Approach_1_active;
 	static bool Approach_2_active;
@@ -147,6 +147,8 @@ struct EV
 
 
 };
+
+
 
 struct GV
 {
@@ -293,7 +295,7 @@ struct SP
 
 
 int Primal_subproblem(vector<SP>& Cuts);// return status
-double Master_Problem(vector<SP> Cuts, GRBEnv* env, double CPU_time, double gap0, double LB_obj,double &MP_gap);
+double Master_Problem(vector<SP> Cuts, GRBEnv* env, double CPU_time, double gap0, double LB_obj, double& MP_gap);
 double MP_init_heuristic(GRBEnv* env);
 double Benders_Decomposition(GRBEnv* env);
 double Dual_Subproblem(vector<SP>& Cuts, GRBEnv* env);

@@ -579,7 +579,7 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 
 			if (Plants[i].type == "wind-offshore-new")
 			{
-				if (n == 0 || n == 2)// except for Massachusetts and Connecticus
+				if (n == 3 || n == 5)// except for Massachusetts and Connecticut
 				{
 					continue;
 				}
@@ -609,12 +609,15 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 				Model.addConstr(EV::Xest[n][i] == EV::val_Xest[n][i]);
 				Model.addConstr(EV::Xdec[n][i] == EV::val_Xdec[n][i]);
 				Model.addConstr(EV::Xop[n][i] == EV::val_Xop[n][i]);
-				/*for (int t = 0; t < Te.size(); t++)
+				if (Setting::relax_UC_vars == false)
 				{
-					Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
-					Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
-					Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
-				}*/
+					for (int t = 0; t < Te.size(); t++)
+					{
+						Model.addConstr(EV::X[n][t][i] == EV::val_X[n][t][i]);
+						Model.addConstr(EV::Xup[n][t][i] == EV::val_Xup[n][t][i]);
+						Model.addConstr(EV::Xdown[n][t][i] == EV::val_Xdown[n][t][i]);
+					}
+				}
 			}
 		}
 
@@ -706,6 +709,25 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 					ex_startup += time_weight[t] * Plants[i].startup_cost * EV::Xup[n][t][i];
 				}
 
+				/*if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					 Plants[i].type == "solar-UPV"|| Plants[i].type == "wind-offshore-new"
+					|| Plants[i].type == "solar" || Plants[i].type == "wind" || Plants[i].type == "wind-new"
+					|| Plants[i].type == "hydro")
+				{
+					Model.addConstr(EV::Xop[n][i] == 0);
+
+				}*/
+				/*if (Plants[i].type == "ng" || Plants[i].type == "CT" ||
+					Plants[i].type == "CC" || Plants[i].type == "CC-CCS" ||
+					Plants[i].type == "nuclear" || Plants[i].type == "nuclear-new" || Plants[i].type == "solar-UPV"
+					|| Plants[i].type == "solar" || Plants[i].type == "wind" || Plants[i].type == "wind-new"
+					|| Plants[i].type == "hydro")
+				{
+					Model.addConstr(EV::Xop[n][i] == 0);
+
+				}*/
+				
 			}
 
 			// load curtailment cost
@@ -735,6 +757,8 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 		ex_trans += capco * trans_unit_cost * Branches[b].maxFlow * Branches[b].length * EV::Ze[b];
 	}
 	exp_Eobj = ex_est + ex_decom + ex_fix + ex_startup + ex_emis + ex_var + ex_thermal_fuel + ex_shedd + ex_trans + ex_elec_str;
+	//exp_Eobj = ex_est + ex_decom + ex_fix   + ex_var ;
+
 
 	Model.addConstr(EV::est_cost == ex_est);
 	Model.addConstr(EV::est_trans_cost == ex_trans);
@@ -922,12 +946,33 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 
 
 			// ignore trans
-			//Model.addConstr(exp_prod + ex_store + EV::curtE[n][t] == dem);
-			//Model.addConstr(exp_prod + exp_trans +  EV::curtE[n][t] == dem);
+			//Model.addConstr(exp_prod + EV::curtE[n][t] == dem);
+			//Model.addConstr(exp_prod == dem);
 
 			Model.addConstr(exp_prod + exp_trans + ex_store + EV::curtE[n][t] == dem); //uncomment this line
 		}
 	}
+
+	//GRBLinExpr demo1(0);
+	//GRBLinExpr demo2(0);
+	//GRBLinExpr demo3(0);
+	//GRBLinExpr demo4(0);
+	//GRBLinExpr demo5(0); GRBLinExpr demo6(0); GRBLinExpr demo7(0);
+	//for (int n = 0; n < nEnode; n++)
+	//{
+	//	demo1 += EV::Xest[n][12];
+	//	demo2 += EV::Xest[n][13];
+	//	demo3 += EV::Xest[n][15]; //nuclear
+	//	demo4 += EV::Xest[n][8]; //CT
+	//	demo5 += EV::Xest[n][9]; //CC
+	//	demo6 += EV::Xest[n][10]; //CCS
+	//	demo7 += EV::Xest[n][11]; //solar
+	//}
+	//Model.addConstr(demo1 == 2302);
+	//Model.addConstr(demo2 == 1372); Model.addConstr(demo3 == 0); Model.addConstr(demo6 == 0); Model.addConstr(demo7 == 0);
+	//Model.addConstr(demo4 == 0); Model.addConstr(demo5 == 1);
+	//
+
 	// C8: flow equation
 	int ebr = 0;
 	for (int br = 0; br < Branches.size(); br++)
@@ -1079,15 +1124,15 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 	}
 
 
-	// C17: if an storage established or not
-	for (int n = 0; n < nEnode; n++)
-	{
-		for (int r = 0; r < neSt; r++)
-		{
-			Model.addConstr(EV::YeLev[n][r] <= 10e8 * EV::YeStr[n][r]);
-			Model.addConstr(EV::YeCD[n][r] <= EV::YeLev[n][r]);
-		}
-	}
+	//// C17: if an storage established or not
+	//for (int n = 0; n < nEnode; n++)
+	//{
+	//	for (int r = 0; r < neSt; r++)
+	//	{
+	//		Model.addConstr(EV::YeLev[n][r] <= 10e8 * EV::YeStr[n][r]);
+	//		Model.addConstr(EV::YeCD[n][r] <= EV::YeLev[n][r]);
+	//	}
+	//}
 
 
 
@@ -1115,20 +1160,24 @@ void Elec_Module(GRBModel& Model, GRBLinExpr& exp_Eobj)
 
 #pragma region add the warm start solution
 	//if (Setting::warm_start_active && !Setting::heuristics1_active)
-	if (Setting::warm_start_active && Setting::use_benders)
+	if (Setting::warm_start_active)
 	{
 		for (int n = 0; n < nEnode; n++)
 		{
 			for (int i = 0; i < nPlt; i++)
 			{
 				//Model.set(GRB_DoubleAttr_Start, EV::Xop[n],EV::val_Xopt[n],nPlt);
-				//EV::Xop[n][i].set(GRB_DoubleAttr_Start, EV::val_Xop[n][i]);
-				//EV::Xest[n][i].set(GRB_DoubleAttr_Start, EV::val_Xest[n][i]);
-				//EV::Xdec[n][i].set(GRB_DoubleAttr_Start, EV::val_Xdec[n][i]);
-				for (int t = 0; t < Te.size(); t++)
+				EV::Xop[n][i].set(GRB_DoubleAttr_Start, EV::val_Xop[n][i]);
+				EV::Xest[n][i].set(GRB_DoubleAttr_Start, EV::val_Xest[n][i]);
+				EV::Xdec[n][i].set(GRB_DoubleAttr_Start, EV::val_Xdec[n][i]);
+				if (Setting::UC_active && Setting::relax_UC_vars == false)
 				{
-					EV::X[n][t][i].set(GRB_DoubleAttr_Start, EV::val_X[n][t][i]);
+					for (int t = 0; t < Te.size(); t++)
+					{
+						EV::X[n][t][i].set(GRB_DoubleAttr_Start, EV::val_X[n][t][i]);
+					}
 				}
+
 			}
 		}
 		for (int b = 0; b < nBr; b++)
@@ -1186,16 +1235,16 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 	{
 		for (int l = 0; l < nPipe; l++)
 		{
-			//Model.addConstr(GV::Zg[l] == GV::val_Zg[l]);
+			//.addConstr(GV::Zg[l] == GV::val_Zg[l]);
 		}
 
-		for (int n = 0; n < nGnode; n++)
-		{
-			for (int t = 0; t < Tg.size(); t++)
-			{
-				//Model.addConstr(GV::supply[n][t] == GV::val_supply[n][t]);
-			}
-		}
+		//for (int n = 0; n < nGnode; n++)
+		//{
+		//	for (int t = 0; t < Tg.size(); t++)
+		//	{
+		//		//Model.addConstr(GV::supply[n][t] == GV::val_supply[n][t]);
+		//	}
+		//}
 	}
 #pragma endregion
 
@@ -1306,14 +1355,19 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 			exp_curt = GV::curtG[k][tau] + GV::curtRNG[k][tau];
 			double dem = Gnodes[k].demG[Tg[tau]];// +Gnodes[k].out_dem;
 			total_dem += RepDaysCount[tau] * dem;
+
+			Model.addConstr(GV::supply[k][tau] - exp_gg_exp + exp_gg_imp - exp_ge_flow + exp_store +
+				GV::curtG[k][tau] + GV::curtRNG[k][tau] == dem);
+
 			//Model.addConstr(GV::supply[k][tau] + exp_gg_flow - exp_store + GV::curtG[k][tau] == Gnodes[k].demG[Tg[tau]] + Gnodes[k].out_dem);
-			Model.addConstr(GV::supply[k][tau] - exp_gg_exp + exp_gg_imp - exp_ge_flow + exp_store + exp_curt == dem);
+			//Model.addConstr(GV::supply[k][tau] - exp_gg_exp + exp_gg_imp - exp_ge_flow + exp_store + exp_curt == dem);
 		}
 	}
 
 
 	// C3,C4: injection (supply) limit and curtailment limit
 	GRBLinExpr exp_RNG(0);
+	double total_ng_dem = 0;
 	for (int k = 0; k < nGnode; k++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -1323,6 +1377,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 			double dem = Gnodes[k].demG[Tg[tau]];// +Gnodes[k].out_dem;
 			Model.addConstr(GV::curtG[k][tau] + GV::curtRNG[k][tau] <= dem);
 			exp_RNG += RepDaysCount[tau] * GV::curtRNG[k][tau];
+			total_ng_dem += RepDaysCount[tau] * dem;
 		}
 	}
 	Model.addConstr(exp_RNG <= Params::RNG_cap * Setting::PGC);
@@ -1336,7 +1391,8 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 			{
 				//Model.addConstr(GV::Sstr[j][tau] == Exist_SVL[j].store_cap*0.5);
 				// start with no stored gas
-				Model.addConstr(GV::Sstr[j][tau] == Exist_SVL[j].store_cap * 0 + GV::Sliq[j][tau] - GV::Svpr[j][tau] / SVLs[1].eff_disCh);
+				Model.addConstr(GV::Sstr[j][tau] == Exist_SVL[j].store_cap * 0 + GV::Sliq[j][tau] -
+					GV::Svpr[j][tau] / SVLs[1].eff_disCh);
 				//Model.addConstr(GV::Sstr[j][tau] == GV::Sliq[j][tau] - GV::Svpr[j][tau] / SVLs[1].eff_disCh);
 				continue;
 			}
@@ -1370,7 +1426,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 		}
 	}
 
-	//C6: Sliq limit
+	//C7: Sliq limit
 	for (int j = 0; j < nSVL; j++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -1379,7 +1435,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 		}
 	}
 
-	//C7: calculate Svpr
+	//C8: calculate Svpr
 	for (int j = 0; j < nSVL; j++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -1405,7 +1461,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 		}
 	}
 
-	//C8: Svpr limit
+	//C9: Svpr limit
 	for (int j = 0; j < nSVL; j++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -1414,7 +1470,7 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 		}
 	}
 
-	//C8: Sstr limit
+	//C10: Sstr limit
 	for (int j = 0; j < nSVL; j++)
 	{
 		for (int tau = 0; tau < Tg.size(); tau++)
@@ -1434,10 +1490,10 @@ void NG_Module(GRBModel& Model, GRBLinExpr& exp_GVobj)
 		{
 			GV::Zg[i].set(GRB_DoubleAttr_Start, GV::val_Zg[i]);
 		}
-		for (int j = 0; j < nSVL; j++)
+		/*for (int j = 0; j < nSVL; j++)
 		{
 			GV::Xstr[j].set(GRB_DoubleAttr_Start, GV::val_Xstr[j]);
-		}
+		}*/
 
 		Model.update();
 	}
@@ -1452,6 +1508,7 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 	CV::xi = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	CV::NG_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
 	CV::E_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+	//Model.addConstr(CV::E_emis == 3.44062e+06);
 
 #pragma region Fetch Data
 	vector<gnode> Gnodes = Params::Gnodes;
@@ -1510,8 +1567,7 @@ void Coupling_Constraints(GRBModel& Model, GRBLinExpr& ex_xi, GRBLinExpr& ex_NG_
 						}
 					}
 				}
-				Model.addConstr(GV::flowGE[k][n][tau] == exp2);
-				//Model.addConstr(exp2 - GV::flowGE[k][n][tau] <= 1e-2);
+				Model.addConstr(GV::flowGE[k][n][tau] == exp2);				
 				ex_xi += RepDaysCount[tau] * GV::flowGE[k][n][tau];
 			}
 		}

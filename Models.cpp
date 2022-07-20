@@ -1,5 +1,216 @@
 #include"Models_Funcs.h"
 
+double Integrated_Model(GRBEnv* env, double gap0)
+{
+	auto start = chrono::high_resolution_clock::now();
+
+#pragma region apply heuristic to generate a warm-start solution
+	//double elec_UB = 0;
+	//if (Setting::warm_start_active)
+	//{
+	//	double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
+	//	elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
+	//}
+#pragma endregion
+	/*GRBEnv* env = 0;
+	env = new GRBEnv();*/
+	GRBModel Model = GRBModel(env);
+	GRBLinExpr exp_NGobj(0);
+	GRBLinExpr exp_Eobj(0);
+	Populate_EV_SP(Model);
+	Elec_Module(Model, exp_Eobj);
+
+	Populate_GV(Model);
+	NG_Module(Model, exp_NGobj);
+
+	// coupling constraints
+	GRBLinExpr ex_xi(0);
+	GRBLinExpr ex_NG_emis(0);
+	GRBLinExpr ex_E_emis(0);
+	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
+
+	//if (Setting::Case == 1)
+	//{
+	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
+	//} else if to next 
+
+	if (Setting::is_xi_given)
+	{
+		cout << "\n\n if xi given" << endl;
+		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
+		Model.addConstr(CV::xi == ex_xi);
+	}
+	else
+	{
+		cout << "else xi given" << endl;
+		Model.addConstr(CV::xi == ex_xi);
+	}
+
+	/*if (Setting::Case == 1)
+	{
+		Model.addConstr(100 == CV::E_emis);
+		Model.addConstr(100 == CV::NG_emis);
+	}*/
+	if (Setting::Case == 2)
+	{
+		Model.addConstr(ex_E_emis <= (1 - Setting::Emis_redu_goal) * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+	if (Setting::Case == 3)
+	{// the original model
+		Model.addConstr(ex_E_emis + ex_NG_emis <=(1-Setting::Emis_redu_goal) * Setting::PE);
+		//Model.addConstr(ex_E_emis + ex_NG_emis <= 10 * Setting::PE);
+		Model.addConstr(ex_E_emis == CV::E_emis);
+		Model.addConstr(ex_NG_emis == CV::NG_emis);
+	}
+
+
+	if (Setting::xi_LB_obj)
+	{
+		Model.setObjective(ex_xi, GRB_MINIMIZE);
+	}
+	else if (Setting::xi_UB_obj)
+	{
+		Model.setObjective(ex_xi, GRB_MAXIMIZE);
+	}
+	else
+	{
+		Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
+		//Model.setObjective(exp_NGobj, GRB_MINIMIZE);
+	}
+
+#pragma region Solve the model
+	Model.set(GRB_IntParam_OutputFlag, 0);
+	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
+	Model.set(GRB_DoubleParam_MIPGap, gap0);
+	//Model.set(GRB_IntParam_DualReductions, 0);
+
+	Model.optimize();
+	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
+	{
+		std::cout << "Failed to optimize IM!!!" << endl;
+		std::cout << Model.get(GRB_IntAttr_Status);
+		return -1;
+	}
+
+
+	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
+	double gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		double gap = Model.get(GRB_DoubleAttr_MIPGap);
+	}
+
+	auto end = chrono::high_resolution_clock::now();
+	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
+	std::cout << "Elapsed time: " << Elapsed << endl;
+	std::cout << "\t Obj Value:" << obj_val << endl;
+	std::cout << "\t Gap: " << gap << " Status:" << Model.get(GRB_IntAttr_Status) << endl;
+	std::cout << "\t xi value = " << CV::xi.get(GRB_DoubleAttr_X) << endl;
+	std::cout << "\t NG emission = " << CV::NG_emis.get(GRB_DoubleAttr_X) << endl;
+	std::cout << "\t E emission = " << CV::E_emis.get(GRB_DoubleAttr_X) << endl;
+#pragma endregion
+
+	EV::MIP_gap = 0;
+	GV::MIP_gap = 0;
+	if (!Setting::relax_int_vars)
+	{
+		EV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
+		GV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
+	}
+	Get_EV_vals(Model);
+	Get_GV_vals(Model);
+
+	//for (int n = 0; n < Params::Enodes.size(); n++)
+	//{
+	//	for (int i = 0; i < Params::Plants.size(); i++)
+	//	{
+	//		double s1 = std::round(EV::Xest[n][i].get(GRB_DoubleAttr_X));
+	//		if (s1 > 0)
+	//		{
+	//			cout << "Xest[" << n << "][" << i << "] = " << s1 << endl;
+
+	//		}
+	//	}
+	//}
+
+	//for (int n = 0; n < Params::Enodes.size(); n++)
+	//{
+	//	for (int i = 0; i < Params::Plants.size(); i++)
+	//	{
+	//		double s1 = std::round(EV::Xop[n][i].get(GRB_DoubleAttr_X));
+	//		if (s1 > 0)
+	//		{
+	//			cout << "Xop[" << n << "][" << i << "] = " << s1 << endl;
+
+	//		}
+	//	}
+	//}
+	//for (int n = 0; n < Params::Enodes.size(); n++)
+	//{
+	//	double s1 = std::round(EV::YeCD[n][0].get(GRB_DoubleAttr_X));
+	//	if (s1 > 0)
+	//	{
+	//		cout << "YeCD[" << n << "][" << 0 << "] = " << s1 << endl;
+
+	//	}
+	//	s1 = std::round(EV::YeLev[n][0].get(GRB_DoubleAttr_X));
+	//	if (s1 > 0)
+	//	{
+	//		cout << "YeLev[" << n << "][" << 0 << "] = " << s1 << endl;
+	//	}
+	//}
+
+	///*for (int b = 0; b < Params::Branches.size(); b++)
+	//{
+	//	for (int t = 0; t < Params::Te.size(); t++)
+	//	{
+	//		double s1 = EV::flowE[b][t].get(GRB_DoubleAttr_X);
+	//		if (s1 != 0 && t<3)
+	//		{
+	//			cout << "FlowE[" << b << "][" << t << "] = " << s1 << endl;
+	//		}
+
+	//	}
+	//}*/
+	//cout << "est cost: " << EV::est_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "decom cost: " << EV::decom_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "fix cost: " << EV::fixed_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "var cost: " << EV::var_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "fuel cost: " << EV::thermal_fuel_cost.get(GRB_DoubleAttr_X) << endl;;
+
+	//cout << "startup cost: " << EV::startup_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "shedding cost: " << EV::shedding_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "storage cost: " << EV::elec_storage_cost.get(GRB_DoubleAttr_X) << endl;;
+	//cout << "trans. est. cost: " << EV::est_trans_cost.get(GRB_DoubleAttr_X) << endl;;
+
+	//double total_prod = 0;
+	//for (int n = 0; n < Params::Enodes.size(); n++)
+	//{
+	//	for (int t = 0; t < Params::Te.size(); t++)
+	//	{
+	//		for (int i = 0; i < Params::Plants.size(); i++)
+	//		{
+	//			total_prod += Params::time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
+	//		}
+	//		//double s1 = std::round(EV::curtE[n][t].get(GRB_DoubleAttr_X));
+	//		//if (s1 > 0)
+	//		//{
+	//			//cout << "curt[" << n << "][" << t << "] = " << s1 << endl;
+
+	//		//}
+	//	}
+	//}
+	//cout << "total prod: " << total_prod << endl;
+
+
+
+	return obj_val;
+}
+
+
+
 double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_gap)
 {
 	auto start = chrono::high_resolution_clock::now();
@@ -34,7 +245,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 
 	// Coupling 2
-	Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+	Model.addConstr(ex_E_emis <= (1 - Setting::Emis_redu_goal) * Setting::PE);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 
 	Model.set(GRB_DoubleParam_TimeLimit, 3600);
@@ -70,7 +281,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 	Model2.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 
 	// Coupling 2
-	Model2.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+	Model2.addConstr(ex_E_emis <= (1 - Setting::Emis_redu_goal) * Setting::PE);
 	Model2.addConstr(ex_E_emis == CV::E_emis);
 	//Model.addConstr(CV::NG_emis);
 
@@ -133,7 +344,7 @@ double feas_sol(double& elec_LB, double& elec_UB, double& ng_obj, double& feas_g
 
 
 	// Coupling 2
-	double rhs = Setting::Emis_lim * Setting::PE - CV::used_emis_cap;
+	double rhs = (1 - Setting::Emis_redu_goal) * Setting::PE - CV::used_emis_cap;
 	rhs = std::max(rhs, 0 + 0.001);
 	Model3.addConstr(ex_NG_emis3 <= rhs);
 	Model3.addConstr(ex_NG_emis3 == CV::NG_emis);
@@ -172,28 +383,28 @@ void Electricy_Network_Model(GRBEnv* env)
 	env = new GRBEnv();*/
 	GRBModel Model = GRBModel(env);
 	GRBLinExpr exp_Eobj(0);
-	Populate_EV_SP(Model);	Populate_GV(Model);
+	Populate_EV_SP(Model);	//Populate_GV(Model);
 	Elec_Module(Model, exp_Eobj);
 	Model.setObjective(exp_Eobj, GRB_MINIMIZE);
-	CV::xi = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-	CV::NG_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-	CV::E_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
-	Model.addConstr(CV::xi == 1);
-	//Model.addConstr(CV::E_emis == 1);
-	//Model.addConstr(CV::NG_emis == 1);
-	// coupling constraints
-	GRBLinExpr ex_xi(0);
-	GRBLinExpr ex_NG_emis(0);
-	GRBLinExpr ex_E_emis(0);
-	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
+	//CV::xi = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+	//CV::NG_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+	//CV::E_emis = Model.addVar(0, GRB_INFINITY, 0, GRB_CONTINUOUS);
+	//Model.addConstr(CV::xi == 1);
+	////Model.addConstr(CV::E_emis == 1);
+	////Model.addConstr(CV::NG_emis == 1);
+	//// coupling constraints
+	//GRBLinExpr ex_xi(0);
+	//GRBLinExpr ex_NG_emis(0);
+	//GRBLinExpr ex_E_emis(0);
+	//Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
 
 
 	//if (Setting::Case == 1)
-	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+	/*{
+		Model.addConstr(ex_E_emis <= Setting::Emis_redu_goal * Setting::PE);
 		Model.addConstr(ex_E_emis == CV::E_emis);
 		Model.addConstr(ex_NG_emis == CV::NG_emis);
-	}
+	}*/
 
 
 #pragma region Solve the model
@@ -222,10 +433,89 @@ void Electricy_Network_Model(GRBEnv* env)
 	std::cout << "\t Obj Value:" << obj_val << endl;
 	std::cout << "\t Gap: " << gap << " Status:" << Model.get(GRB_IntAttr_Status) << endl;
 #pragma endregion
+	for (int n = 0; n < Params::Enodes.size(); n++)
+	{
+		for (int i = 0; i < Params::Plants.size(); i++)
+		{
+			double s1 = std::round(EV::Xest[n][i].get(GRB_DoubleAttr_X));
+			if (s1 > 0)
+			{
+				cout << "Xest[" << n << "][" << i << "] = " << s1 << endl;
 
+			}
+		}
+	}
 
+	for (int n = 0; n < Params::Enodes.size(); n++)
+	{
+		for (int i = 0; i < Params::Plants.size(); i++)
+		{
+			double s1 = std::round(EV::Xop[n][i].get(GRB_DoubleAttr_X));
+			if (s1 > 0)
+			{
+				cout << "Xop[" << n << "][" << i << "] = " << s1 << endl;
 
-	Get_EV_vals(Model);
+			}
+		}
+	}
+	for (int n = 0; n < Params::Enodes.size(); n++)
+	{
+		double s1 = std::round(EV::YeCD[n][0].get(GRB_DoubleAttr_X));
+		if (s1 > 0)
+		{
+			cout << "YeCD[" << n << "][" << 0 << "] = " << s1 << endl;
+
+		}
+		s1 = std::round(EV::YeLev[n][0].get(GRB_DoubleAttr_X));
+		if (s1 > 0)
+		{
+			cout << "YeLev[" << n << "][" << 0 << "] = " << s1 << endl;
+		}
+	}
+
+	/*for (int b = 0; b < Params::Branches.size(); b++)
+	{
+		for (int t = 0; t < Params::Te.size(); t++)
+		{
+			double s1 = EV::flowE[b][t].get(GRB_DoubleAttr_X);
+			if (s1 != 0 && t<3)
+			{
+				cout << "FlowE[" << b << "][" << t << "] = " << s1 << endl;
+			}
+
+		}
+	}*/
+	cout << "est cost: " << EV::est_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "decom cost: " << EV::decom_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "fix cost: " << EV::fixed_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "var cost: " << EV::var_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "fuel cost: " << EV::thermal_fuel_cost.get(GRB_DoubleAttr_X) << endl;;
+
+	cout << "startup cost: " << EV::startup_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "shedding cost: " << EV::shedding_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "storage cost: " << EV::elec_storage_cost.get(GRB_DoubleAttr_X) << endl;;
+	cout << "trans. est. cost: " << EV::est_trans_cost.get(GRB_DoubleAttr_X) << endl;;
+
+	double total_prod = 0;
+	for (int n = 0; n < Params::Enodes.size(); n++)
+	{
+		for (int t = 0; t < Params::Te.size(); t++)
+		{
+			for (int i = 0; i < Params::Plants.size(); i++)
+			{
+				total_prod += Params::time_weight[t] * EV::prod[n][t][i].get(GRB_DoubleAttr_X);
+			}
+			//double s1 = std::round(EV::curtE[n][t].get(GRB_DoubleAttr_X));
+			//if (s1 > 0)
+			//{
+				//cout << "curt[" << n << "][" << t << "] = " << s1 << endl;
+
+			//}
+		}
+	}
+	cout << "total prod: " << total_prod << endl;
+
+	//Get_EV_vals(Model);
 
 }
 
@@ -276,131 +566,6 @@ void NG_Network_Model(GRBEnv* env)
 	Get_GV_vals(Model);
 }
 
-double Integrated_Model(GRBEnv* env,double gap0)
-{
-	auto start = chrono::high_resolution_clock::now();
-
-#pragma region apply heuristic to generate a warm-start solution
-	//double elec_UB = 0;
-	//if (Setting::warm_start_active)
-	//{
-	//	double elec_LB = 0; double elec_UB = 0; double ng_obj; double feas_gap = 0;
-	//	elec_UB = feas_sol(elec_LB, elec_UB, ng_obj, feas_gap);
-	//}
-#pragma endregion
-	/*GRBEnv* env = 0;
-	env = new GRBEnv();*/
-	GRBModel Model = GRBModel(env);
-	GRBLinExpr exp_NGobj(0);
-	GRBLinExpr exp_Eobj(0);
-	Populate_EV_SP(Model);
-	Elec_Module(Model, exp_Eobj);
-
-	Populate_GV(Model);
-	NG_Module(Model, exp_NGobj);
-
-	// coupling constraints
-	GRBLinExpr ex_xi(0);
-	GRBLinExpr ex_NG_emis(0);
-	GRBLinExpr ex_E_emis(0);
-	Coupling_Constraints(Model, ex_xi, ex_NG_emis, ex_E_emis);
-
-	//if (Setting::Case == 1)
-	//{
-	//	Model.addConstr(CV::xi == 100); // just to populate CV::xi
-	//} else if to next 
-
-	if (Setting::is_xi_given)
-	{
-		cout << "\n\n if xi given" << endl;
-		Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
-		Model.addConstr(CV::xi == ex_xi);
-	}
-	else
-	{
-		cout << "else xi given" << endl;
-		Model.addConstr(CV::xi == ex_xi);
-	}
-
-	/*if (Setting::Case == 1)
-	{
-		Model.addConstr(100 == CV::E_emis);
-		Model.addConstr(100 == CV::NG_emis);
-	}*/
-	if (Setting::Case == 2)
-	{
-		Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
-		Model.addConstr(ex_E_emis == CV::E_emis);
-		Model.addConstr(ex_NG_emis == CV::NG_emis);
-	}
-	if (Setting::Case == 3)
-	{// the original model
-		Model.addConstr(ex_E_emis + ex_NG_emis <= Setting::Emis_lim * Setting::PE);
-		Model.addConstr(ex_E_emis == CV::E_emis);
-		Model.addConstr(ex_NG_emis == CV::NG_emis);
-	}
-
-
-	if (Setting::xi_LB_obj)
-	{
-		Model.setObjective(ex_xi, GRB_MINIMIZE);
-	}
-	else if (Setting::xi_UB_obj)
-	{
-		Model.setObjective(ex_xi, GRB_MAXIMIZE);
-	}
-	else
-	{
-		Model.setObjective(exp_Eobj + exp_NGobj, GRB_MINIMIZE);
-		/*if (Setting::warm_start_active)
-		{
-			Model.addConstr(exp_Eobj + exp_NGobj <= elec_UB);
-		}*/
-	}
-
-#pragma region Solve the model
-	Model.set(GRB_IntParam_OutputFlag, 0);
-	Model.set(GRB_DoubleParam_TimeLimit, Setting::CPU_limit);
-	Model.set(GRB_DoubleParam_MIPGap, gap0);
-	//Model.set(GRB_IntParam_DualReductions, 0);
-
-	Model.optimize();
-	if (Model.get(GRB_IntAttr_Status) == GRB_INFEASIBLE || Model.get(GRB_IntAttr_Status) == GRB_UNBOUNDED)
-	{
-		std::cout << "Failed to optimize IM!!!" << endl;
-		std::cout << Model.get(GRB_IntAttr_Status);
-		return -1;
-	}
-
-
-	double obj_val = Model.get(GRB_DoubleAttr_ObjVal);
-	double gap = 0;
-	if (!Setting::relax_int_vars)
-	{
-		double gap = Model.get(GRB_DoubleAttr_MIPGap);
-	}
-
-	auto end = chrono::high_resolution_clock::now();
-	double Elapsed = (double)chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000; // seconds
-	std::cout << "Elapsed time: " << Elapsed << endl;
-	std::cout << "\t Obj Value:" << obj_val << endl;
-	std::cout << "\t Gap: " << gap << " Status:" << Model.get(GRB_IntAttr_Status) << endl;
-	std::cout << "\t xi value = " << CV::xi.get(GRB_DoubleAttr_X) << endl;
-	std::cout << "\t NG emission = " << CV::NG_emis.get(GRB_DoubleAttr_X) << endl;
-	std::cout << "\t E emission = " << CV::E_emis.get(GRB_DoubleAttr_X) << endl;
-#pragma endregion
-
-	EV::MIP_gap = 0;
-	GV::MIP_gap = 0;
-	if (!Setting::relax_int_vars)
-	{
-		EV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
-		GV::MIP_gap = Model.get(GRB_DoubleAttr_MIPGap);
-	}
-	Get_EV_vals(Model);
-	Get_GV_vals(Model);
-	return obj_val;
-}
 
 double DESP(GRBEnv* env)
 {
@@ -422,7 +587,7 @@ double DESP(GRBEnv* env)
 	Model.addConstr(ex_xi == Setting::xi_val * Setting::PGC);
 
 	// Coupling 2
-	Model.addConstr(ex_E_emis <= Setting::Emis_lim * Setting::PE);
+	Model.addConstr(ex_E_emis <= (1 - Setting::Emis_redu_goal) * Setting::PE);
 	//Model.addConstr(ex_NG_emis <= 2.6e6);
 	Model.addConstr(ex_E_emis == CV::E_emis);
 	//Model.addConstr(CV::NG_emis);
@@ -481,7 +646,7 @@ double DGSP(GRBEnv* env)
 
 
 	// Coupling 2
-	double rhs = Setting::Emis_lim * Setting::PE - CV::used_emis_cap;
+	double rhs = (1 - Setting::Emis_redu_goal) * Setting::PE - CV::used_emis_cap;
 	rhs = std::max(rhs, 0 + 0.001);
 	Model.addConstr(ex_NG_emis <= rhs);
 	Model.addConstr(ex_NG_emis == CV::NG_emis);

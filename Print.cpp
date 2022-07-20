@@ -663,7 +663,7 @@ void Print_Results(double Elapsed_time, double status)
 	ofstream fid0;
 	// only for approach 1 or  case 1
 	int is_given = (std::round(Setting::is_xi_given));
-	int em_lim = 100 * (Setting::Emis_lim);
+	int em_lim = 100 * (Setting::Emis_redu_goal);
 	int rps = 100 * (Setting::RPS);
 	int rng = 100 * Setting::RNG_cap;
 	/*string name = "Rep " + std::to_string(Setting::Num_rep_days) +
@@ -845,7 +845,7 @@ void Print_Results(double Elapsed_time, double status)
 
 	fid << Setting::is_xi_given << ",";
 	fid << CV::val_xi << ",";
-	fid << Setting::Emis_lim << ",";
+	fid << Setting::Emis_redu_goal << ",";
 	fid << Setting::RPS << ",";
 	fid << Setting::RNG_cap << ",";
 	//if (status == -1)// problem is infeasible
@@ -939,7 +939,7 @@ void Print_Results(double Elapsed_time, double status)
 	fid2 << "\t Case: " << Setting::Case;
 	fid2 << "\txi_given: " << Setting::is_xi_given;
 	fid2 << "\txi_val: " << CV::val_xi;
-	fid2 << "\tEmis_lim: " << Setting::Emis_lim;
+	fid2 << "\tEmis_lim: " << Setting::Emis_redu_goal;
 	fid2 << "\tRPS: " << Setting::RPS;
 	fid2 << "\tRNG_cap: " << Setting::RNG_cap;
 	fid2 << "\tBenders: " << Setting::use_benders;
